@@ -42,6 +42,21 @@
       <p style="margin:0;color:#9aa6ba;font-size:15px;">Demandes de devis, clients, interventions, facturation, tarifs, messagerie et agenda — tout se gère ici.</p>
     </div>
 
+    <!-- Planning du jour -->
+    <div class="panel-card" style="position:relative;overflow:hidden;padding:24px;margin-bottom:26px;border-color:rgba(77,141,255,.3);">
+      <div style="position:absolute;top:-1px;left:24px;right:40%;height:2px;background:linear-gradient(90deg,transparent,#2f7bff,transparent);"></div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="width:10px;height:10px;border-radius:50%;background:#4d8dff;animation:ctaPulse 2.2s ease-in-out infinite;"></span>
+          <h2 style="margin:0;font-size:19px;font-weight:900;">Votre journée</h2>
+        </div>
+        <span id="today-date" style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;letter-spacing:.08em;color:#7fadff;text-transform:capitalize;"></span>
+      </div>
+      <div id="today-list" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;">
+        <p style="margin:0;color:#5f6d84;font-size:14px;">Chargement…</p>
+      </div>
+    </div>
+
     <div class="stat-tiles" style="grid-template-columns:repeat(4,1fr);margin-bottom:34px;">
       <div class="panel-card" style="position:relative;overflow:hidden;padding:20px 22px;"><div style="position:absolute;top:-1px;left:20px;right:55%;height:2px;background:linear-gradient(90deg,#2f7bff,transparent);"></div><div id="stat-quotes" style="font-size:26px;font-weight:900;background:linear-gradient(90deg,#c9d4e6,#4d8dff);-webkit-background-clip:text;background-clip:text;color:transparent;">—</div><div style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;color:#4d8dff;text-transform:uppercase;">Demandes à traiter</div></div>
       <div class="panel-card" style="position:relative;overflow:hidden;padding:20px 22px;"><div style="position:absolute;top:-1px;left:20px;right:55%;height:2px;background:linear-gradient(90deg,#2f7bff,transparent);"></div><div id="stat-tickets" style="font-size:26px;font-weight:900;background:linear-gradient(90deg,#c9d4e6,#4d8dff);-webkit-background-clip:text;background-clip:text;color:transparent;">—</div><div style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;color:#4d8dff;text-transform:uppercase;">Tickets ouverts</div></div>
