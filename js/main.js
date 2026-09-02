@@ -314,6 +314,7 @@
       ev.preventDefault();
       var email = document.getElementById("p-email").value.trim();
       var pass = document.getElementById("p-pass").value;
+      if (email && email.indexOf("@") === -1) email += "@cta-auto.fr";
       if (!email || !pass) {
         setLoginMsg("Merci de renseigner votre e-mail et votre mot de passe.", true);
         return;
@@ -332,10 +333,15 @@
         .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
         .then(function (res) {
           if (res.ok && res.j.access_token) {
-            setLoginMsg("Connexion réussie ✓ Bienvenue !");
-            var url = (CFG.espacePartenaireUrl || "").trim();
-            if (url) window.open(url, "_blank");
-            else setLoginMsg("Connexion réussie ✓ Votre portail partenaire dédié arrive très bientôt — nous vous préviendrons par e-mail.");
+            try {
+              sessionStorage.setItem("cta_session", JSON.stringify({
+                access_token: res.j.access_token,
+                refresh_token: res.j.refresh_token,
+                email: email
+              }));
+            } catch (e) { /* stockage indisponible : la connexion reste valable */ }
+            setLoginMsg("Connexion réussie ✓ Redirection vers votre espace…");
+            window.location.href = (CFG.espacePartenaireUrl || "").trim() || "espace.html";
           } else {
             setLoginMsg("Identifiants incorrects ou accès non encore activé. Demandez votre accès via le formulaire de devis.", true);
           }

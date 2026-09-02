@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Espace partenaires · CTA Conseil Technique Auto</title>
+<meta name="description" content="Espace partenaires CTA : suivi des interventions, devis et factures, grille distributeur et messagerie.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" href="assets/logo-cta-transparent.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+
+<div style="min-height:100vh;background:#07090d;overflow-x:hidden;position:relative;">
+  <div style="position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:1100px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(47,123,255,.14) 0%,transparent 65%);pointer-events:none;"></div>
+
+  <!-- Barre haute -->
+  <header style="position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 28px;background:rgba(7,9,13,.82);backdrop-filter:blur(14px);border-bottom:1px solid rgba(120,150,200,.12);">
+    <a href="index.html" style="display:flex;align-items:center;gap:14px;">
+      <img src="assets/logo-cta-transparent.png" alt="CTA Conseil Technique Auto" style="height:34px;width:auto;">
+      <span class="nav-sep" style="width:1px;height:24px;background:linear-gradient(rgba(120,150,200,.05),rgba(120,150,200,.4),rgba(120,150,200,.05));"></span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.16em;color:#4d8dff;text-transform:uppercase;">Espace partenaires</span>
+    </a>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <span id="p-company" style="font-size:13.5px;font-weight:700;color:#9fb6d8;white-space:nowrap;"></span>
+      <button id="logout" class="btn-ghost" style="padding:9px 18px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:13px;cursor:pointer;">Se déconnecter</button>
+    </div>
+  </header>
+
+  <main class="section-pad" style="position:relative;max-width:1100px;margin:0 auto;padding:48px 40px 90px;">
+
+    <!-- Accueil + stats -->
+    <div style="margin-bottom:34px;">
+      <h1 style="margin:0 0 8px;font-size:clamp(24px,3.4vw,36px);font-weight:900;">Bonjour <span id="p-name" style="background:linear-gradient(90deg,#c9d4e6,#4d8dff);-webkit-background-clip:text;background-clip:text;color:transparent;"></span></h1>
+      <p style="margin:0;color:#9aa6ba;font-size:15px;">Retrouvez ici vos interventions, vos documents, votre grille tarifaire et notre messagerie.</p>
+    </div>
+    <div class="stat-tiles" style="margin-bottom:38px;">
+      <div class="panel-card" style="position:relative;overflow:hidden;padding:22px 24px;">
+        <div style="position:absolute;top:-1px;left:20px;right:55%;height:2px;background:linear-gradient(90deg,#2f7bff,transparent);"></div>
+        <div id="stat-interv" style="font-size:28px;font-weight:900;background:linear-gradient(90deg,#c9d4e6,#4d8dff);-webkit-background-clip:text;background-clip:text;color:transparent;">—</div>
+        <div style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.14em;color:#4d8dff;text-transform:uppercase;">Interventions à venir</div>
+      </div>
+      <div class="panel-card" style="position:relative;overflow:hidden;padding:22px 24px;">
+        <div style="position:absolute;top:-1px;left:20px;right:55%;height:2px;background:linear-gradient(90deg,#2f7bff,transparent);"></div>
+        <div id="stat-devis" style="font-size:28px;font-weight:900;background:linear-gradient(90deg,#c9d4e6,#4d8dff);-webkit-background-clip:text;background-clip:text;color:transparent;">—</div>
+        <div style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.14em;color:#4d8dff;text-transform:uppercase;">Devis en attente</div>
+      </div>
+      <div class="panel-card" style="position:relative;overflow:hidden;padding:22px 24px;">
+        <div style="position:absolute;top:-1px;left:20px;right:55%;height:2px;background:linear-gradient(90deg,#2f7bff,transparent);"></div>
+        <div id="stat-tickets" style="font-size:28px;font-weight:900;background:linear-gradient(90deg,#c9d4e6,#4d8dff);-webkit-background-clip:text;background-clip:text;color:transparent;">—</div>
+        <div style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.14em;color:#4d8dff;text-transform:uppercase;">Tickets ouverts</div>
+      </div>
+    </div>
+
+    <p id="portal-error" hidden style="margin:0 0 24px;padding:14px 18px;border-radius:12px;background:rgba(255,110,110,.08);border:1px solid rgba(255,110,110,.35);color:#ff8c8c;font-size:14px;"></p>
+
+    <!-- Onglets -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:26px;">
+      <button class="tab active" data-tab="interventions">Interventions</button>
+      <button class="tab" data-tab="documents">Devis &amp; factures</button>
+      <button class="tab" data-tab="grille">Grille distributeur</button>
+      <button class="tab" data-tab="messagerie">Messagerie</button>
+    </div>
+
+    <!-- Interventions -->
+    <section id="tab-interventions">
+      <div class="panel-card" style="overflow:hidden;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 24px;background:rgba(47,123,255,.08);">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8b98ae;">Suivi de vos interventions</span>
+        </div>
+        <div id="interv-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
+      </div>
+      <p style="margin:14px 4px 0;font-size:12.5px;color:#5f6d84;">Besoin de déplacer une intervention ? Ouvrez un ticket dans la messagerie ou appelez-nous.</p>
+    </section>
+
+    <!-- Devis & factures -->
+    <section id="tab-documents" hidden>
+      <div class="panel-card" style="overflow:hidden;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 24px;background:rgba(47,123,255,.08);">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8b98ae;">Vos devis et factures</span>
+        </div>
+        <div id="docs-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
+      </div>
+      <p style="margin:14px 4px 0;font-size:12.5px;color:#5f6d84;">Pour accepter un devis, répondez à l'e-mail reçu ou ouvrez un ticket avec la référence du devis.</p>
+    </section>
+
+    <!-- Grille distributeur -->
+    <section id="tab-grille" hidden>
+      <div class="panel-card" style="overflow:hidden;">
+        <div style="display:grid;grid-template-columns:1fr 140px 140px;gap:10px;padding:16px 24px;background:rgba(47,123,255,.08);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8b98ae;">
+          <span>Prestation</span>
+          <span style="text-align:right;">Tarif public</span>
+          <span style="text-align:right;color:#7fadff;">Votre tarif</span>
+        </div>
+        <div id="grid-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
+      </div>
+      <p style="margin:14px 4px 0;font-size:12.5px;color:#5f6d84;">Tarifs HT, hors frais de déplacement. Grille personnelle et confidentielle — devis groupé possible pour interventions multiples.</p>
+    </section>
+
+    <!-- Messagerie / tickets -->
+    <section id="tab-messagerie" hidden>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px;">
+        <p style="margin:0;color:#9aa6ba;font-size:14px;">Un problème, une question ? Ouvrez un ticket : nous répondons sous 24 h ouvrées.</p>
+        <button id="new-ticket-btn" class="btn-primary" style="padding:11px 22px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;box-shadow:0 6px 20px rgba(47,123,255,.35);">+ Nouveau ticket</button>
+      </div>
+
+      <form id="ticket-form" hidden class="panel-card" style="display:flex;flex-direction:column;gap:12px;padding:24px;margin-bottom:20px;">
+        <input id="t-subject" class="input" maxlength="200" placeholder="Sujet — ex. : Mise à jour impossible sur MS909" required>
+        <textarea id="t-body" class="input" rows="4" maxlength="5000" placeholder="Décrivez le problème : matériel, message d'erreur, contexte…" required style="resize:vertical;"></textarea>
+        <div style="display:flex;gap:12px;justify-content:flex-end;">
+          <button type="button" id="ticket-cancel" class="btn-ghost" style="padding:11px 22px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:13.5px;cursor:pointer;">Annuler</button>
+          <button type="submit" class="btn-primary" style="padding:11px 26px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;box-shadow:0 6px 20px rgba(47,123,255,.35);">Envoyer le ticket</button>
+        </div>
+      </form>
+
+      <div class="cols-tickets">
+        <div id="ticket-list" style="display:flex;flex-direction:column;gap:10px;">
+          <p style="margin:0;padding:6px;color:#5f6d84;font-size:14px;">Chargement…</p>
+        </div>
+        <div id="thread" class="panel-card" style="padding:24px;min-height:320px;display:flex;flex-direction:column;">
+          <p id="thread-empty" style="margin:auto;color:#5f6d84;font-size:14px;text-align:center;">Sélectionnez un ticket pour afficher la conversation.</p>
+          <div id="thread-view" hidden style="display:flex;flex-direction:column;flex:1;gap:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid rgba(120,150,200,.12);">
+              <div>
+                <div id="thread-subject" style="font-weight:800;font-size:16.5px;"></div>
+                <div id="thread-meta" style="margin-top:3px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#5f6d84;"></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span id="thread-status" class="badge badge-blue"></span>
+                <button id="thread-resolve" class="btn-ghost" style="padding:7px 14px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:12px;cursor:pointer;">Marquer résolu</button>
+              </div>
+            </div>
+            <div id="thread-msgs" style="display:flex;flex-direction:column;gap:12px;flex:1;"></div>
+            <form id="reply-form" style="display:flex;gap:10px;align-items:flex-end;">
+              <textarea id="r-body" class="input" rows="2" maxlength="5000" placeholder="Votre message…" required style="flex:1;resize:vertical;"></textarea>
+              <button type="submit" class="btn-primary" style="padding:13px 22px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;box-shadow:0 6px 20px rgba(47,123,255,.35);">Envoyer</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/espace.js"></script>
+</body>
+</html>
