@@ -9,6 +9,8 @@ Autel, stations ATF et calibration ADAS — Grand Ouest), avec backend Supabase.
 |---|---|
 | `index.html` | Page principale (one-page) |
 | `mentions-legales.html` | Mentions légales, CGV, RGPD, cookies |
+| `connexion.html` + `js/login.js` | Page de connexion (Supabase Auth) |
+| `espace.html` + `js/espace.js` | Espace partenaires : interventions, devis/factures, grille distributeur, messagerie de tickets |
 | `css/site.css` | Styles globaux, hover/focus, responsive, `prefers-reduced-motion` |
 | `js/config.js` | **Configuration à adapter** : e-mail de contact, URL boutique, URL espace partenaires, jours bloqués, clés Supabase |
 | `js/main.js` | Reveal au scroll, menu mobile, calendrier RDV, formulaire de devis, connexion partenaires |
@@ -37,7 +39,29 @@ puis mettre à jour la balise `<link rel="canonical">` de `index.html`.
   consentement RGPD, honeypot anti-spam, listes blanches), insère en base et peut
   notifier par e-mail.
 - **Espace partenaires** : Supabase Auth (e-mail + mot de passe). Créer les comptes
-  clients depuis le dashboard (*Authentication → Users → Add user*).
+  clients depuis le dashboard (*Authentication → Users → Add user*) — le profil
+  `cta_partners` est créé automatiquement (trigger).
+
+### Espace partenaires (`espace.html`)
+
+Tables dédiées, toutes préfixées `cta_` et protégées par RLS (chaque partenaire ne
+voit que ses données) :
+
+| Table | Contenu | Qui écrit ? |
+|---|---|---|
+| `cta_partners` | Profil (société, contact) | Auto (trigger) + dashboard |
+| `cta_interventions` | Suivi des interventions | Vous, via le dashboard |
+| `cta_documents` | Devis et factures (`kind` = devis/facture, `file_url` optionnel pour le PDF) | Vous, via le dashboard |
+| `cta_price_grid` | Grille distributeur (tarif public / tarif partenaire) — **valeurs d'exemple à ajuster** | Vous, via le dashboard |
+| `cta_tickets` + `cta_ticket_messages` | Messagerie de tickets | Le partenaire depuis le site ; vos réponses via le dashboard (`author` = `cta`) |
+
+Pour répondre à un ticket : *Table Editor → cta_ticket_messages → Insert row* avec
+`ticket_id`, `author` = `cta` et votre message ; puis passer le ticket en `resolu`
+dans `cta_tickets` une fois traité.
+
+**Compte de démonstration** : `admin@cta-auto.fr` (ou simplement `admin` sur la page
+de connexion) / mot de passe `admin` — ⚠️ mot de passe très faible, à changer dans
+*Authentication → Users* avant toute mise en production réelle.
 
 ### Notification e-mail des devis (optionnel, recommandé)
 

@@ -3,8 +3,8 @@ window.CTA_CONFIG = {
   // Adresse e-mail de réception des demandes de devis (utilisée par le repli mailto:)
   emailContact: "contact@cta-auto.fr",
 
-  // URL de la boutique externe (société partenaire). Laisser "" tant qu'elle n'est pas connue.
-  boutiqueUrl: "",
+  // URL de la boutique externe (société partenaire).
+  boutiqueUrl: "https://leqgmotorsport.fr/",
 
   // URL du portail partenaires si un portail distinct existe. Laisser "" pour rester sur le site.
   espacePartenaireUrl: "",
