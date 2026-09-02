@@ -119,13 +119,29 @@
     });
   });
 
-  /* ---------- Profil ---------- */
-  api("cta_partners?select=*").then(function (rows) {
+  /* ---------- Profil (type de client : direct / distributeur) ---------- */
+  var clientType = "direct";
+  api("cta_partners?select=*&id=eq." + uid).then(function (rows) {
     var p = rows && rows[0];
     if (!p) return;
+    clientType = p.client_type || "direct";
     var name = p.contact_name || p.company_name || p.email || "";
     document.getElementById("p-name").textContent = name;
     document.getElementById("p-company").textContent = p.company_name || p.email || "";
+    var typeEl = document.getElementById("p-type");
+    typeEl.hidden = false;
+    typeEl.className = "badge " + (clientType === "distributeur" ? "badge-green" : "badge-blue");
+    typeEl.textContent = clientType === "distributeur" ? "Distributeur" : "Client direct";
+    if (p.role === "admin") document.getElementById("admin-link").hidden = false;
+    if (clientType !== "distributeur") {
+      // Client direct : l'onglet devient « Vos tarifs » (tarifs publics, sans remise)
+      document.querySelector('[data-tab="grille"]').textContent = "Vos tarifs";
+      document.getElementById("grid-col-public").textContent = "";
+      document.getElementById("grid-col-partner").textContent = "Tarif HT";
+      document.getElementById("grid-note").textContent =
+        "Tarifs HT, hors frais de déplacement. Devis personnalisé pour interventions multiples — et grille distributeur dédiée si vous revendez du matériel : parlez-en avec nous.";
+    }
+    renderGrid();
   }).catch(function () { /* non bloquant */ });
 
   /* ---------- Interventions ---------- */
@@ -168,20 +184,30 @@
     }).join("");
   }).catch(function () { showError("Impossible de charger les documents — reconnectez-vous ou réessayez plus tard."); });
 
-  /* ---------- Grille distributeur ---------- */
-  api("cta_price_grid?select=*&order=sort.asc").then(function (rows) {
+  /* ---------- Grille tarifaire (distributeur : tarif remisé · direct : tarif public) ---------- */
+  var gridRows = null;
+  function renderGrid() {
+    if (gridRows === null) return;
     var host = document.getElementById("grid-list");
-    if (!rows.length) {
+    if (!gridRows.length) {
       host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Grille en cours de préparation — contactez-nous pour un devis.</p>';
       return;
     }
-    host.innerHTML = rows.map(function (r) {
+    var distrib = clientType === "distributeur";
+    host.innerHTML = gridRows.map(function (r) {
+      var myPrice = distrib ? r.partner_price_ht : r.public_price_ht;
       return '<div class="list-row" style="display:grid;grid-template-columns:1fr 140px 140px;gap:10px;align-items:center;">' +
         '<span style="font-size:14.5px;font-weight:600;color:#dfe6f2;">' + esc(r.label) + "</span>" +
-        '<span style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:14px;color:#8b98ae;text-decoration:line-through;">' + esc(eur(r.public_price_ht)) + "</span>" +
-        '<span style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:15px;font-weight:600;color:#7fadff;">' + esc(eur(r.partner_price_ht)) + "</span>" +
+        (distrib
+          ? '<span style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:14px;color:#8b98ae;text-decoration:line-through;">' + esc(eur(r.public_price_ht)) + "</span>"
+          : "<span></span>") +
+        '<span style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:15px;font-weight:600;color:#7fadff;">' + esc(eur(myPrice)) + "</span>" +
         "</div>";
     }).join("");
+  }
+  api("cta_price_grid?select=*&order=sort.asc").then(function (rows) {
+    gridRows = rows;
+    renderGrid();
   }).catch(function () { showError("Impossible de charger la grille tarifaire — reconnectez-vous ou réessayez plus tard."); });
 
   /* ---------- Messagerie / tickets ---------- */

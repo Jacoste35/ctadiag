@@ -1,87 +1,105 @@
-# CTA · Conseil Technique Auto — Site vitrine
+# CTA · Conseil Technique Auto — Site + back-office (livraison clé en main)
 
-Site one-page pour CTA (conseil, installation et mise en service d'outils de diagnostic
-Autel, stations ATF et calibration ADAS — Grand Ouest), avec backend Supabase.
+Site vitrine one-page, espace clients (directs et distributeurs) et back-office
+d'administration complet, avec backend Supabase. Le gérant pilote toute l'activité
+depuis le site, sans toucher à la technique.
 
-## Structure
+## Les pages
 
-| Fichier / dossier | Rôle |
-|---|---|
-| `index.html` | Page principale (one-page) |
-| `mentions-legales.html` | Mentions légales, CGV, RGPD, cookies |
-| `connexion.html` + `js/login.js` | Page de connexion (Supabase Auth) |
-| `espace.html` + `js/espace.js` | Espace partenaires : interventions, devis/factures, grille distributeur, messagerie de tickets |
-| `css/site.css` | Styles globaux, hover/focus, responsive, `prefers-reduced-motion` |
-| `js/config.js` | **Configuration à adapter** : e-mail de contact, URL boutique, URL espace partenaires, jours bloqués, clés Supabase |
-| `js/main.js` | Reveal au scroll, menu mobile, calendrier RDV, formulaire de devis, connexion partenaires |
-| `assets/` | Images (logos, produits, carte, photo fondateur) |
-| `supabase/` | Migrations SQL et fonction Edge `submit-quote` (miroir de ce qui est déployé) |
-| `.github/workflows/deploy.yml` | Déploiement automatique sur GitHub Pages |
-
-## Déploiement (frontend)
-
-Le site est 100 % statique, déployé sur **GitHub Pages** via GitHub Actions à chaque
-push sur `main` (ou la branche de développement). Première activation : si le workflow
-échoue au premier passage, activer Pages dans *Settings → Pages → Source :
-GitHub Actions*, puis relancer le workflow.
-
-URL du site : `https://<utilisateur>.github.io/ctadiag/`
-Pour un domaine personnalisé (ex. `cta-auto.fr`) : *Settings → Pages → Custom domain*,
-puis mettre à jour la balise `<link rel="canonical">` de `index.html`.
-
-## Backend (Supabase — projet `ooogbitnoqvrtwrpisnn`, région eu-central-1)
-
-- **`quote_requests`** : demandes de devis. RLS activée sans policy publique — la table
-  n'est lisible que depuis le dashboard Supabase (Table Editor) ou avec la clé service role.
-- **`blocked_dates`** : jours indisponibles du calendrier (lecture publique). Ajouter une
-  ligne (`day` au format `YYYY-MM-DD`) depuis le dashboard pour bloquer une date.
-- **Fonction Edge `submit-quote`** : reçoit le formulaire, valide (champs obligatoires,
-  consentement RGPD, honeypot anti-spam, listes blanches), insère en base et peut
-  notifier par e-mail.
-- **Espace partenaires** : Supabase Auth (e-mail + mot de passe). Créer les comptes
-  clients depuis le dashboard (*Authentication → Users → Add user*) — le profil
-  `cta_partners` est créé automatiquement (trigger).
-
-### Espace partenaires (`espace.html`)
-
-Tables dédiées, toutes préfixées `cta_` et protégées par RLS (chaque partenaire ne
-voit que ses données) :
-
-| Table | Contenu | Qui écrit ? |
+| Page | Qui | Rôle |
 |---|---|---|
-| `cta_partners` | Profil (société, contact) | Auto (trigger) + dashboard |
-| `cta_interventions` | Suivi des interventions | Vous, via le dashboard |
-| `cta_documents` | Devis et factures (`kind` = devis/facture, `file_url` optionnel pour le PDF) | Vous, via le dashboard |
-| `cta_price_grid` | Grille distributeur (tarif public / tarif partenaire) — **valeurs d'exemple à ajuster** | Vous, via le dashboard |
-| `cta_tickets` + `cta_ticket_messages` | Messagerie de tickets | Le partenaire depuis le site ; vos réponses via le dashboard (`author` = `cta`) |
+| `index.html` | Public | Site vitrine : prestations, tarifs publics, RDV, demande de devis, boutique |
+| `mentions-legales.html` | Public | Mentions légales, CGV, RGPD, cookies |
+| `connexion.html` | Clients + gérant | Connexion (e-mail ou identifiant court) |
+| `espace.html` | Clients connectés | Espace client : interventions, devis/factures, tarifs, messagerie |
+| `admin.html` | Gérant uniquement | **Back-office** : demandes de devis, clients, interventions, facturation, tarifs, messagerie, agenda |
 
-Pour répondre à un ticket : *Table Editor → cta_ticket_messages → Insert row* avec
-`ticket_id`, `author` = `cta` et votre message ; puis passer le ticket en `resolu`
-dans `cta_tickets` une fois traité.
+## Comptes de démonstration
 
-**Compte de démonstration** : `admin@cta-auto.fr` (ou simplement `admin` sur la page
-de connexion) / mot de passe `admin` — ⚠️ mot de passe très faible, à changer dans
-*Authentication → Users* avant toute mise en production réelle.
+| Identifiant | Mot de passe | Rôle |
+|---|---|---|
+| `admin` | `admin` | **Gérant** (accès back-office `admin.html`) |
+| `distrib` | `distrib` | Client **distributeur** (grille remisée, marque blanche) |
+| `client` | `client` | Client **direct** (tarifs publics) |
+
+⚠️ **Changer ces mots de passe avant toute communication de l'adresse du site**
+(back-office → Clients → « Mot de passe », ou dashboard Supabase → Authentication).
+
+## Clients directs vs distributeurs
+
+Le type se choisit à la création du compte (ou se change dans l'onglet Clients) :
+
+- **Client direct** : voit « Vos tarifs » (colonne *Tarif public* de la grille),
+  ses interventions, devis/factures et la messagerie.
+- **Distributeur** : voit la « Grille distributeur » (tarif public barré + tarif
+  remisé), ses interventions en marque blanche, devis/factures et messagerie.
+
+Les deux tarifs de chaque prestation se gèrent dans le back-office, onglet **Tarifs**.
+
+## Le back-office (`admin.html`) — guide du gérant
+
+- **Demandes de devis** : chaque envoi du formulaire du site arrive ici (coordonnées,
+  prestations cochées, créneau de RDV souhaité, message). Marquer traité / supprimer.
+- **Clients** : créer un compte (e-mail + mot de passe provisoire + type), modifier
+  société/contact/téléphone/type, réinitialiser un mot de passe, supprimer un compte.
+- **Interventions** : planifier une intervention pour un client (date, heure, matériel,
+  lieu) ; le client la voit immédiatement dans son espace. Statuts : planifiée → en
+  cours → terminée / annulée.
+- **Devis & factures** : enregistrer un devis ou une facture (référence, montant HT,
+  lien PDF optionnel) et suivre son statut (en attente / accepté · à régler / payée).
+- **Tarifs** : la grille à deux colonnes (public / distributeur), modifiable ligne à ligne.
+- **Messagerie** : tous les tickets clients, réponse en tant que « Hotline CTA »,
+  changement de statut. Un client qui répond à un ticket résolu le rouvre automatiquement.
+- **Agenda** : bloquer des jours (congés, salons…) — ils deviennent instantanément
+  indisponibles dans le calendrier de RDV du site public.
+
+## Architecture technique
+
+**Frontend** : site 100 % statique (HTML/CSS/JS vanilla), déployé sur GitHub Pages
+via GitHub Actions (branche `gh-pages`) à chaque push. Hébergeable tel quel sur
+Vercel/Netlify (aucun build).
+
+**Backend** : Supabase (projet `ooogbitnoqvrtwrpisnn`, région UE `eu-central-1`).
+
+- Auth : comptes e-mail/mot de passe ; rôle `admin` ou `client` + type
+  `direct`/`distributeur` dans `cta_partners` (profil auto-créé par trigger).
+- Tables (préfixe `cta_` — le projet héberge une autre application) : `cta_partners`,
+  `cta_interventions`, `cta_documents`, `cta_price_grid`, `cta_tickets`,
+  `cta_ticket_messages`, plus `quote_requests` (formulaire public) et
+  `blocked_dates` (calendrier).
+- Sécurité : RLS partout — un client ne voit que ses données ; l'admin voit tout
+  (fonction `cta_is_admin()`) ; les demandes de devis ne sont lisibles que par l'admin.
+- Fonctions Edge : `submit-quote` (réception des devis : validation, consentement
+  RGPD, honeypot anti-spam, e-mail optionnel) et `admin-users` (création/mot de
+  passe/suppression de comptes, réservée à l'admin).
+- Miroir du schéma dans `supabase/migrations/` et des fonctions dans
+  `supabase/functions/`.
+
+**Configuration** (`js/config.js`) : e-mail de contact, URL boutique
+(`https://leqgmotorsport.fr/`), jours bloqués de secours, clés publiques Supabase.
 
 ### Notification e-mail des devis (optionnel, recommandé)
 
-Créer un compte [Resend](https://resend.com) (gratuit) puis configurer les secrets de la
-fonction Edge dans le dashboard Supabase (*Edge Functions → submit-quote → Secrets*) :
+Compte [Resend](https://resend.com) gratuit, puis dans le dashboard Supabase
+(*Edge Functions → submit-quote → Secrets*) :
 
 ```
 RESEND_API_KEY=re_xxx
 QUOTE_NOTIFY_EMAIL=contact@cta-auto.fr
 ```
 
-Sans ces secrets, les demandes restent consultables dans la table `quote_requests`.
-Si l'appel au backend échoue côté navigateur, le site retombe automatiquement sur un
-e-mail `mailto:` prérempli.
+Sans cela, les demandes restent visibles dans le back-office (onglet Demandes).
 
-## Reste à faire avant la mise en production
+## Check-list avant remise au dirigeant
 
-1. Compléter les champs `[...]` des mentions légales (SIRET, RCS, TVA, assurance,
-   médiateur) et le pied de page de `index.html` ; faire valider les CGV par un juriste.
-2. Renseigner `boutiqueUrl` et éventuellement `espacePartenaireUrl` dans `js/config.js`.
-3. Remplacer les témoignages d'exemple par de vrais retours clients.
-4. Configurer la notification e-mail (voir ci-dessus).
-5. Vérifier les droits d'usage des logos marques (Autel, Yacco, Igol, Autech Expert).
+1. **Mots de passe** des 3 comptes de démonstration (ou suppression des comptes
+   `distrib`/`client` de démo et de leurs données d'exemple).
+2. **Mentions légales** : compléter les champs `[...]` (SIRET, RCS, TVA, assurance,
+   médiateur) dans `mentions-legales.html` et le pied de page d'`index.html` ;
+   faire valider les CGV.
+3. **Tarifs distributeur** : ajuster la colonne distributeur (valeurs d'exemple à −15 %).
+4. **Témoignages** : remplacer les exemples d'`index.html`.
+5. **Notification e-mail** des devis (voir ci-dessus).
+6. **Domaine** : brancher `cta-auto.fr` (Vercel ou GitHub Pages → Custom domain) et
+   mettre à jour la balise `canonical` d'`index.html`.
+7. Vérifier les droits d'usage des logos marques (Autel, Yacco, Igol, Autech Expert).
