@@ -418,13 +418,15 @@
           </div>
         </div>
       </div>
-      <form id="p-form" style="position:relative;display:flex;flex-direction:column;gap:14px;">
-        <input id="p-email" type="text" autocomplete="username" placeholder="E-mail ou identifiant" class="input">
-        <input id="p-pass" type="password" autocomplete="current-password" placeholder="Mot de passe" class="input">
-        <button id="p-login" type="submit" class="btn-primary" style="padding:15px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:15px;cursor:pointer;box-shadow:0 8px 26px rgba(47,123,255,.35);">Se connecter</button>
-        <p id="p-msg" hidden style="margin:0;text-align:center;font-size:13px;color:#7fadff;"></p>
-        <p style="margin:0;text-align:center;font-size:12.5px;color:#5f6d84;">Pas encore de compte ? <a href="#contact">Demandez votre accès</a> avec votre première commande.</p>
-      </form>
+      <div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;padding:12px 0;">
+        <span style="display:flex;align-items:center;justify-content:center;width:74px;height:74px;border-radius:50%;background:rgba(47,123,255,.12);border:1px solid rgba(77,141,255,.4);font-size:30px;">🔐</span>
+        <p style="margin:0;font-size:14.5px;line-height:1.65;color:#9aa6ba;max-width:320px;">Votre espace sécurisé vous attend : interventions, documents, tarifs et messagerie directe avec CTA.</p>
+        <a href="connexion.html" class="btn-primary" style="position:relative;overflow:hidden;display:inline-flex;align-items:center;gap:10px;padding:16px 40px;border-radius:999px;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:15.5px;box-shadow:0 8px 30px rgba(47,123,255,.4);">
+          <span style="position:absolute;top:0;bottom:0;left:0;width:40%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.25),transparent);animation:ctaScan 4s ease-in-out infinite;"></span>
+          Se connecter à mon espace
+        </a>
+        <p style="margin:0;font-size:12.5px;color:#5f6d84;">Pas encore de compte ? <a href="#contact">Demandez votre accès</a> avec votre première commande.</p>
+      </div>
     </div>
   </section>
 
