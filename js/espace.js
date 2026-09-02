@@ -136,6 +136,7 @@
     typeEl.className = "badge " + (clientType === "distributeur" ? "badge-green" : "badge-blue");
     typeEl.textContent = clientType === "distributeur" ? "Distributeur" : "Client direct";
     if (p.role === "admin") document.getElementById("admin-link").hidden = false;
+    if (p.must_change_password) showPasswordModal();
     if (clientType !== "distributeur") {
       // Client direct : l'onglet devient « Vos tarifs » (tarifs publics, sans remise)
       document.querySelector('[data-tab="grille"]').textContent = "Vos tarifs";
@@ -146,6 +147,37 @@
     }
     renderGrid();
   }).catch(function () { /* non bloquant */ });
+
+  /* ---------- Mot de passe provisoire : changement obligatoire ---------- */
+  function showPasswordModal() {
+    var modal = document.getElementById("pwd-modal");
+    modal.hidden = false;
+    document.getElementById("pwd-form").addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var msg = document.getElementById("pwd-msg");
+      var p1 = document.getElementById("pwd-new").value;
+      var p2 = document.getElementById("pwd-confirm").value;
+      msg.hidden = true;
+      if (p1.length < 6) { msg.hidden = false; msg.textContent = "6 caractères minimum."; return; }
+      if (p1 !== p2) { msg.hidden = false; msg.textContent = "Les deux mots de passe ne correspondent pas."; return; }
+      fetch(API + "/auth/v1/user", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: KEY,
+          Authorization: "Bearer " + session.access_token
+        },
+        body: JSON.stringify({ password: p1 })
+      })
+        .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+        .then(function () { return api("cta_partners?id=eq." + uid, { method: "PATCH", body: { must_change_password: false } }); })
+        .then(function () { modal.hidden = true; })
+        .catch(function () {
+          msg.hidden = false;
+          msg.textContent = "Changement impossible pour le moment, réessayez.";
+        });
+    });
+  }
 
   /* ---------- Interventions ---------- */
   api("cta_interventions?select=*&order=date.asc").then(function (rows) {

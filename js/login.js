@@ -68,4 +68,46 @@
       })
       .finally(function () { btn.disabled = false; });
   });
+
+  /* Mot de passe oublié : un mot de passe provisoire est envoyé par e-mail */
+  var forgotLink = document.getElementById("forgot-link");
+  var forgotForm = document.getElementById("forgot-form");
+  var forgotMsg = document.getElementById("forgot-msg");
+  if (forgotLink && forgotForm) {
+    forgotLink.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      forgotForm.hidden = !forgotForm.hidden;
+      if (!forgotForm.hidden) {
+        var known = document.getElementById("l-email").value.trim();
+        if (known && known.indexOf("@") !== -1) document.getElementById("forgot-email").value = known;
+        document.getElementById("forgot-email").focus();
+      }
+    });
+    forgotForm.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var email = document.getElementById("forgot-email").value.trim();
+      if (!email || !API || !KEY) return;
+      forgotMsg.hidden = false;
+      forgotMsg.style.color = "#7fadff";
+      forgotMsg.textContent = "Envoi en cours…";
+      fetch(API + "/functions/v1/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: KEY },
+        body: JSON.stringify({ email: email })
+      })
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+          if (res.ok) {
+            forgotMsg.textContent = "Si un compte existe avec cette adresse, un e-mail contenant un mot de passe provisoire vient d'être envoyé. Pensez à vérifier vos indésirables.";
+          } else {
+            forgotMsg.style.color = "#ff8c8c";
+            forgotMsg.textContent = res.j.error || "Service indisponible, réessayez plus tard.";
+          }
+        })
+        .catch(function () {
+          forgotMsg.style.color = "#ff8c8c";
+          forgotMsg.textContent = "Service indisponible, réessayez plus tard.";
+        });
+    });
+  }
 })();
