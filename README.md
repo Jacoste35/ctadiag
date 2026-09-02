@@ -53,6 +53,22 @@ Les deux tarifs de chaque prestation se gèrent dans le back-office, onglet **Ta
 - **Agenda** : bloquer des jours (congés, salons…) — ils deviennent instantanément
   indisponibles dans le calendrier de RDV du site public.
 
+## Application installable (PWA)
+
+Le site est une **application web installable** : sur téléphone ou tablette, elle
+s'ajoute à l'écran d'accueil avec l'icône CTA et s'ouvre en plein écran, comme une
+app native. La connexion est **mémorisée** (plus besoin de se reconnecter à chaque
+ouverture) et les pages restent consultables hors connexion (les données, elles,
+nécessitent le réseau).
+
+**Installation** — à transmettre aux techniciens et clients :
+- **iPhone / iPad** : ouvrir le site dans Safari → bouton Partager → « Sur l'écran d'accueil ».
+- **Android** : ouvrir le site dans Chrome → menu ⋮ → « Installer l'application » (ou la bannière proposée).
+
+L'app s'ouvre sur la page de connexion et bascule automatiquement sur l'espace si
+une session existe. Toute l'interface est optimisée tactile (onglets défilants,
+formulaires empilés, en-têtes compacts) du téléphone à la tablette.
+
 ## Architecture technique
 
 **Frontend** : site 100 % statique (HTML/CSS/JS vanilla), déployé sur GitHub Pages

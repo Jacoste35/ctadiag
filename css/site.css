@@ -150,6 +150,54 @@ input::placeholder, textarea::placeholder { color: #5f6d84; }
   .stat-tiles { grid-template-columns: 1fr !important; }
 }
 
+/* ---- Mode application (PWA installée) ---- */
+@media (display-mode: standalone) {
+  body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+}
+
+/* ---- Téléphone & petite tablette : confort tactile ---- */
+@media (max-width: 700px) {
+  .hide-mobile { display: none !important; }
+
+  /* Onglets : rangée défilante façon application */
+  .tabs-row {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+    margin-left: -20px; margin-right: -20px;
+    padding-left: 20px; padding-right: 20px;
+  }
+  .tabs-row::-webkit-scrollbar { display: none; }
+  .tab { flex-shrink: 0; }
+
+  main.section-pad { padding-top: 26px !important; padding-bottom: 60px !important; }
+  .list-row { padding: 14px 16px; gap: 10px; }
+
+  /* Formulaires de réponse : bouton sous la zone de texte */
+  .reply-form { flex-direction: column !important; align-items: stretch !important; }
+  .reply-form button { width: 100%; }
+
+  /* Grilles tarifaires : colonnes resserrées */
+  .price-head, .price-row { grid-template-columns: 1fr 82px 92px !important; padding-left: 16px !important; padding-right: 16px !important; }
+  .price-head span, .price-row span { font-size: 12.5px !important; }
+  .tarif-row { grid-template-columns: 1fr 104px !important; padding-left: 18px !important; padding-right: 18px !important; }
+
+  /* Back-office : édition de la grille sur 2 colonnes */
+  .ag-row { grid-template-columns: 1fr 1fr !important; }
+  .ag-row input[data-f="label"] { grid-column: 1 / -1; }
+  .grid-add-form { grid-template-columns: 1fr 1fr !important; }
+  .grid-add-form input[id="g-label"] { grid-column: 1 / -1; }
+  .grid-add-form button { grid-column: 1 / -1; }
+  .blocked-add-form { grid-template-columns: 1fr !important; }
+
+  /* En-têtes d'app : plus compacts */
+  header .btn-ghost { padding: 8px 12px !important; font-size: 12.5px !important; white-space: nowrap; }
+  .app-label { display: none !important; }
+  header[style*="sticky"] { padding-left: 14px !important; padding-right: 14px !important; gap: 8px !important; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   html { scroll-behavior: auto; }

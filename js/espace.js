@@ -10,7 +10,10 @@
 
   /* ---------- Session ---------- */
   function readSession() {
-    try { return JSON.parse(sessionStorage.getItem("cta_session")); } catch (e) { return null; }
+    try {
+      return JSON.parse(localStorage.getItem("cta_session")) ||
+             JSON.parse(sessionStorage.getItem("cta_session"));
+    } catch (e) { return null; }
   }
   var session = readSession();
   if (!session || !session.access_token || !API || !KEY) {
@@ -26,7 +29,7 @@
   var uid = uidFromToken(session.access_token);
 
   function logout() {
-    try { sessionStorage.removeItem("cta_session"); } catch (e) { /* ignore */ }
+    try { localStorage.removeItem("cta_session"); sessionStorage.removeItem("cta_session"); } catch (e) { /* ignore */ }
     window.location.replace("connexion.html");
   }
   document.getElementById("logout").addEventListener("click", logout);
@@ -42,7 +45,7 @@
         if (j && j.access_token) {
           session.access_token = j.access_token;
           if (j.refresh_token) session.refresh_token = j.refresh_token;
-          try { sessionStorage.setItem("cta_session", JSON.stringify(session)); } catch (e) { /* ignore */ }
+          try { localStorage.setItem("cta_session", JSON.stringify(session)); } catch (e) { /* ignore */ }
           uid = uidFromToken(session.access_token);
           return true;
         }
@@ -196,7 +199,7 @@
     var distrib = clientType === "distributeur";
     host.innerHTML = gridRows.map(function (r) {
       var myPrice = distrib ? r.partner_price_ht : r.public_price_ht;
-      return '<div class="list-row" style="display:grid;grid-template-columns:1fr 140px 140px;gap:10px;align-items:center;">' +
+      return '<div class="list-row price-row" style="display:grid;grid-template-columns:1fr 140px 140px;gap:10px;align-items:center;">' +
         '<span style="font-size:14.5px;font-weight:600;color:#dfe6f2;">' + esc(r.label) + "</span>" +
         (distrib
           ? '<span style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:14px;color:#8b98ae;text-decoration:line-through;">' + esc(eur(r.public_price_ht)) + "</span>"

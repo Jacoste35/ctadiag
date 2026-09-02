@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>CTA · Conseil Technique Auto — Installation d'outils de diagnostic, stations ATF & ADAS</title>
 <meta name="description" content="Conseil, installation et mise en service d'outils de diagnostic Autel, de stations ATF et de systèmes ADAS pour les distributeurs agréés et garages du Grand Ouest.">
 <link rel="canonical" href="https://jacoste35.github.io/ctadiag/">
@@ -12,6 +12,13 @@
 <meta property="og:image" content="assets/logo-cta-transparent.png">
 <meta property="og:locale" content="fr_FR">
 <link rel="icon" type="image/png" href="assets/logo-cta-transparent.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#07090d">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CTA">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -179,16 +186,16 @@
         <p style="margin:10px auto 0;max-width:640px;color:#5f6d84;font-size:13.5px;line-height:1.6;">Tarifs donnés à titre indicatif. Des frais de déplacement peuvent s'appliquer en fonction de la situation géographique de l'intervention ; ils sont facturés en supplément et précisés sur le devis.</p>
       </div>
       <div data-reveal style="border-radius:18px;border:1px solid rgba(120,150,200,.16);overflow:hidden;">
-        <div style="display:grid;grid-template-columns:1fr 180px;padding:16px 28px;background:rgba(47,123,255,.08);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8b98ae;">
+        <div class="tarif-row" style="display:grid;grid-template-columns:1fr 180px;padding:16px 28px;background:rgba(47,123,255,.08);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8b98ae;">
           <span>Prestation</span>
           <span style="text-align:right;">À partir de</span>
         </div>
-        <div class="row-tarif" style="display:grid;grid-template-columns:1fr 180px;align-items:center;padding:18px 28px;border-top:1px solid rgba(120,150,200,.1);"><span style="font-size:15.5px;font-weight:600;color:#dfe6f2;">Mise en service à distance (tél / e-mail)</span><span style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:#fff;">50 €</span></div>
-        <div class="row-tarif" style="display:grid;grid-template-columns:1fr 180px;align-items:center;padding:18px 28px;border-top:1px solid rgba(120,150,200,.1);"><span style="font-size:15.5px;font-weight:600;color:#dfe6f2;">Installation valise diagnostic · petit outil</span><span style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:#fff;">175 €</span></div>
-        <div class="row-tarif" style="display:grid;grid-template-columns:1fr 180px;align-items:center;padding:18px 28px;border-top:1px solid rgba(120,150,200,.1);"><span style="font-size:15.5px;font-weight:600;color:#dfe6f2;">Installation Autel gamme Maxi (MS909 / MS908S)</span><span style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:#fff;">350 €</span></div>
-        <div class="row-tarif" style="display:grid;grid-template-columns:1fr 180px;align-items:center;padding:18px 28px;border-top:1px solid rgba(120,150,200,.1);"><span style="font-size:15.5px;font-weight:600;color:#dfe6f2;">Installation Autel gamme Maxi (MS919 / MS Ultra)</span><span style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:#fff;">425 €</span></div>
-        <div class="row-tarif" style="display:grid;grid-template-columns:1fr 180px;align-items:center;padding:18px 28px;border-top:1px solid rgba(120,150,200,.1);"><span style="font-size:15.5px;font-weight:600;color:#dfe6f2;">Mise en service station ATF</span><span style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:#fff;">380 €</span></div>
-        <div class="row-tarif" style="display:grid;grid-template-columns:1fr 180px;align-items:center;padding:18px 28px;border-top:1px solid rgba(120,150,200,.1);"><span style="font-size:15.5px;font-weight:600;color:#dfe6f2;">Conseil, installation &amp; calibration ADAS</span><span style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:#fff;">550 €</span></div>
+        <div class="row-tarif tarif-row" style="display:grid;grid-template-columns:1fr 180px;align-items:center;padding:18px 28px;border-top:1px solid rgba(120,150,200,.1);"><span style="font-size:15.5px;font-weight:600;color:#dfe6f2;">Mise en service à distance (tél / e-mail)</span><span style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:#fff;">50 €</span></div>
+        <div class="row-tarif tarif-row" style="display:grid;grid-template-columns:1fr 180px;align-items:center;padding:18px 28px;border-top:1px solid rgba(120,150,200,.1);"><span style="font-size:15.5px;font-weight:600;color:#dfe6f2;">Installation valise diagnostic · petit outil</span><span style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:#fff;">175 €</span></div>
+        <div class="row-tarif tarif-row" style="display:grid;grid-template-columns:1fr 180px;align-items:center;padding:18px 28px;border-top:1px solid rgba(120,150,200,.1);"><span style="font-size:15.5px;font-weight:600;color:#dfe6f2;">Installation Autel gamme Maxi (MS909 / MS908S)</span><span style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:#fff;">350 €</span></div>
+        <div class="row-tarif tarif-row" style="display:grid;grid-template-columns:1fr 180px;align-items:center;padding:18px 28px;border-top:1px solid rgba(120,150,200,.1);"><span style="font-size:15.5px;font-weight:600;color:#dfe6f2;">Installation Autel gamme Maxi (MS919 / MS Ultra)</span><span style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:#fff;">425 €</span></div>
+        <div class="row-tarif tarif-row" style="display:grid;grid-template-columns:1fr 180px;align-items:center;padding:18px 28px;border-top:1px solid rgba(120,150,200,.1);"><span style="font-size:15.5px;font-weight:600;color:#dfe6f2;">Mise en service station ATF</span><span style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:#fff;">380 €</span></div>
+        <div class="row-tarif tarif-row" style="display:grid;grid-template-columns:1fr 180px;align-items:center;padding:18px 28px;border-top:1px solid rgba(120,150,200,.1);"><span style="font-size:15.5px;font-weight:600;color:#dfe6f2;">Conseil, installation &amp; calibration ADAS</span><span style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:#fff;">550 €</span></div>
       </div>
       <div data-reveal class="grid-notes">
         <div class="tile-note" style="display:flex;align-items:center;gap:14px;padding:16px 20px;border-radius:14px;background:rgba(13,17,25,.8);border:1px solid rgba(120,150,200,.14);">
@@ -490,5 +497,6 @@
 
 <script src="js/config.js"></script>
 <script src="js/main.js"></script>
+<script src="js/pwa.js"></script>
 </body>
 </html>
