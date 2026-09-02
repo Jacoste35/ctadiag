@@ -356,6 +356,7 @@
   /* ---------- Messagerie / tickets ---------- */
   var tickets = [];
   var currentTicket = null;
+  var showArchived = false;
 
   function ticketStats() {
     document.getElementById("stat-tickets").textContent =
@@ -364,23 +365,42 @@
 
   function renderTicketList() {
     var host = document.getElementById("ticket-list");
-    if (!tickets.length) {
-      host.innerHTML = '<p style="margin:0;padding:6px;color:#5f6d84;font-size:14px;">Aucun ticket : ouvrez-en un si besoin.</p>';
+    var visible = tickets.filter(function (t) { return showArchived ? t.archived : !t.archived; });
+    var archivedCount = tickets.filter(function (t) { return t.archived; }).length;
+    var toggle = archivedCount
+      ? '<button type="button" id="toggle-archived" style="margin-top:4px;padding:9px 14px;border-radius:999px;border:1px dashed rgba(120,150,200,.3);background:transparent;color:#8b98ae;font-weight:700;font-size:12.5px;cursor:pointer;font-family:\'Archivo\',sans-serif;">' +
+        (showArchived ? "← Retour aux tickets actifs" : "🗄️ Voir les archives (" + archivedCount + ")") + "</button>"
+      : "";
+    if (!visible.length) {
+      host.innerHTML = '<p style="margin:0;padding:6px;color:#5f6d84;font-size:14px;">' +
+        (showArchived ? "Aucun ticket archivé." : "Aucun ticket : ouvrez-en un si besoin.") + "</p>" + toggle;
+      bindToggleArchived(host);
       return;
     }
-    host.innerHTML = tickets.map(function (t) {
+    host.innerHTML = visible.map(function (t) {
       return '<button type="button" class="ticket-item' + (currentTicket === t.id ? " active" : "") + '" data-id="' + t.id + '">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">' +
         '<span style="font-weight:800;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(t.subject) + "</span>" + badge(t.status) + "</div>" +
         '<div style="margin-top:5px;font-family:\'IBM Plex Mono\',monospace;font-size:11.5px;color:#5f6d84;">Mis à jour le ' + esc(fmtDateTime(t.updated_at)) + "</div>" +
         "</button>";
-    }).join("");
+    }).join("") + toggle;
     host.querySelectorAll(".ticket-item").forEach(function (b) {
       b.addEventListener("click", function () {
         currentTicket = b.dataset.id;
         renderTicketList();
         renderThread();
       });
+    });
+    bindToggleArchived(host);
+  }
+  function bindToggleArchived(host) {
+    var t = host.querySelector("#toggle-archived");
+    if (t) t.addEventListener("click", function () {
+      showArchived = !showArchived;
+      var pool = tickets.filter(function (x) { return showArchived ? x.archived : !x.archived; });
+      currentTicket = pool.length ? pool[0].id : null;
+      renderTicketList();
+      renderThread();
     });
   }
 
@@ -396,6 +416,9 @@
     st.className = "badge " + s[1];
     st.textContent = s[0];
     document.getElementById("thread-resolve").hidden = t.status === "resolu" || t.status === "ferme";
+    var archBtn = document.getElementById("thread-archive");
+    archBtn.hidden = !(t.status === "resolu" || t.status === "ferme");
+    archBtn.textContent = t.archived ? "Désarchiver" : "Archiver";
     var msgs = (t.cta_ticket_messages || []).slice().sort(function (a, b) {
       return new Date(a.created_at) - new Date(b.created_at);
     });
@@ -420,7 +443,8 @@
     return api("cta_tickets?select=*,cta_ticket_messages(*)&order=updated_at.desc").then(function (rows) {
       tickets = rows;
       if (!keepSelection || !tickets.some(function (t) { return t.id === currentTicket; })) {
-        currentTicket = tickets.length ? tickets[0].id : null;
+        var pool = tickets.filter(function (t) { return showArchived ? t.archived : !t.archived; });
+        currentTicket = pool.length ? pool[0].id : null;
       }
       ticketStats();
       renderTicketList();
@@ -474,6 +498,15 @@
         return loadTickets(true);
       })
       .catch(function () { showError("L'envoi du message a échoué : réessayez plus tard."); });
+  });
+
+  // Archiver / désarchiver un ticket résolu
+  document.getElementById("thread-archive").addEventListener("click", function () {
+    var t = tickets.find(function (x) { return x.id === currentTicket; });
+    if (!t) return;
+    api("cta_tickets?id=eq." + currentTicket, { method: "PATCH", body: { archived: !t.archived } })
+      .then(function () { return loadTickets(false); })
+      .catch(function () { showError("Archivage impossible : réessayez plus tard."); });
   });
 
   // Marquer résolu

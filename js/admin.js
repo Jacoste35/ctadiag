@@ -171,6 +171,7 @@
   /* ---------- Données ---------- */
   var clients = [], quotes = [], interventions = [], documents = [], grid = [], tickets = [], blockedDates = [], equipment = [];
   var currentTicket = null;
+  var showArchived = false;
 
   function clientName(id) {
     var c = clients.find(function (x) { return x.id === id; });
@@ -313,7 +314,10 @@
       clients = res[0]; quotes = res[1]; interventions = res[2];
       documents = res[3]; grid = res[4]; tickets = res[5]; blockedDates = res[6];
       equipment = res[7];
-      if (!currentTicket && tickets.length) currentTicket = tickets[0].id;
+      if (!currentTicket) {
+        var activePool = tickets.filter(function (t) { return !t.archived; });
+        if (activePool.length) currentTicket = activePool[0].id;
+      }
       refreshStats(); renderToday(); renderWeek();
       renderQuotes(); renderClients(); renderClientSelects();
       renderInterventions(); renderDocuments(); renderGrid();
@@ -694,23 +698,42 @@
   /* ---------- Messagerie ---------- */
   function renderTicketList() {
     var host = document.getElementById("at-list");
-    if (!tickets.length) {
-      host.innerHTML = '<p style="margin:0;padding:6px;color:#5f6d84;font-size:14px;">Aucun ticket.</p>';
+    var visible = tickets.filter(function (t) { return showArchived ? t.archived : !t.archived; });
+    var archivedCount = tickets.filter(function (t) { return t.archived; }).length;
+    var toggle = archivedCount
+      ? '<button type="button" id="at-toggle-archived" style="margin-top:4px;padding:9px 14px;border-radius:999px;border:1px dashed rgba(120,150,200,.3);background:transparent;color:#8b98ae;font-weight:700;font-size:12.5px;cursor:pointer;font-family:\'Archivo\',sans-serif;">' +
+        (showArchived ? "← Retour aux tickets actifs" : "🗄️ Voir les archives (" + archivedCount + ")") + "</button>"
+      : "";
+    if (!visible.length) {
+      host.innerHTML = '<p style="margin:0;padding:6px;color:#5f6d84;font-size:14px;">' +
+        (showArchived ? "Aucun ticket archivé." : "Aucun ticket.") + "</p>" + toggle;
+      bindAtToggle(host);
       return;
     }
-    host.innerHTML = tickets.map(function (t) {
+    host.innerHTML = visible.map(function (t) {
       return '<button type="button" class="ticket-item' + (currentTicket === t.id ? " active" : "") + '" data-id="' + t.id + '">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">' +
         '<span style="font-weight:800;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(t.subject) + "</span>" + badge(t.status) + "</div>" +
         '<div style="margin-top:5px;font-family:\'IBM Plex Mono\',monospace;font-size:11.5px;color:#5f6d84;">' + esc(clientName(t.partner_id)) + " · " + esc(fmtDateTime(t.updated_at)) + "</div>" +
         "</button>";
-    }).join("");
+    }).join("") + toggle;
     host.querySelectorAll(".ticket-item").forEach(function (b) {
       b.addEventListener("click", function () {
         currentTicket = b.dataset.id;
         renderTicketList();
         renderThread();
       });
+    });
+    bindAtToggle(host);
+  }
+  function bindAtToggle(host) {
+    var t = host.querySelector("#at-toggle-archived");
+    if (t) t.addEventListener("click", function () {
+      showArchived = !showArchived;
+      var pool = tickets.filter(function (x) { return showArchived ? x.archived : !x.archived; });
+      currentTicket = pool.length ? pool[0].id : null;
+      renderTicketList();
+      renderThread();
     });
   }
 
@@ -722,6 +745,9 @@
     document.getElementById("at-subject").textContent = t.subject;
     document.getElementById("at-meta").textContent = clientName(t.partner_id) + " · ouvert le " + fmtDateTime(t.created_at);
     document.getElementById("at-status").value = t.status;
+    var archBtn = document.getElementById("at-archive");
+    archBtn.hidden = !(t.status === "resolu" || t.status === "ferme");
+    archBtn.textContent = t.archived ? "Désarchiver" : "Archiver";
     var msgs = (t.cta_ticket_messages || []).slice().sort(function (a, b) {
       return new Date(a.created_at) - new Date(b.created_at);
     });
@@ -745,10 +771,21 @@
     return api("cta_tickets?select=*,cta_ticket_messages(*)&order=updated_at.desc").then(function (rows) {
       tickets = rows;
       if (currentTicket && !tickets.some(function (t) { return t.id === currentTicket; })) currentTicket = null;
-      if (!currentTicket && tickets.length) currentTicket = tickets[0].id;
+      if (!currentTicket) {
+        var pool = tickets.filter(function (t) { return showArchived ? t.archived : !t.archived; });
+        if (pool.length) currentTicket = pool[0].id;
+      }
       refreshStats(); renderTicketList(); renderThread();
     });
   }
+
+  document.getElementById("at-archive").addEventListener("click", function () {
+    var t = tickets.find(function (x) { return x.id === currentTicket; });
+    if (!t) return;
+    api("cta_tickets?id=eq." + currentTicket, { method: "PATCH", body: { archived: !t.archived } })
+      .then(function () { currentTicket = null; return reloadTickets(); })
+      .catch(function () { showError("Archivage impossible."); });
+  });
 
   document.getElementById("at-status").addEventListener("change", function () {
     if (!currentTicket) return;
