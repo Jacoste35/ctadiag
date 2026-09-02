@@ -10,7 +10,10 @@
 
   /* ---------- Session ---------- */
   function readSession() {
-    try { return JSON.parse(sessionStorage.getItem("cta_session")); } catch (e) { return null; }
+    try {
+      return JSON.parse(localStorage.getItem("cta_session")) ||
+             JSON.parse(sessionStorage.getItem("cta_session"));
+    } catch (e) { return null; }
   }
   var session = readSession();
   if (!session || !session.access_token || !API || !KEY) {
@@ -18,7 +21,7 @@
     return;
   }
   function logout() {
-    try { sessionStorage.removeItem("cta_session"); } catch (e) { /* ignore */ }
+    try { localStorage.removeItem("cta_session"); sessionStorage.removeItem("cta_session"); } catch (e) { /* ignore */ }
     window.location.replace("connexion.html");
   }
   document.getElementById("logout").addEventListener("click", logout);
@@ -34,7 +37,7 @@
         if (j && j.access_token) {
           session.access_token = j.access_token;
           if (j.refresh_token) session.refresh_token = j.refresh_token;
-          try { sessionStorage.setItem("cta_session", JSON.stringify(session)); } catch (e) { /* ignore */ }
+          try { localStorage.setItem("cta_session", JSON.stringify(session)); } catch (e) { /* ignore */ }
           return true;
         }
         return false;
@@ -475,7 +478,7 @@
       return;
     }
     host.innerHTML = grid.map(function (r) {
-      return '<div class="list-row" data-grid-row="' + r.id + '" style="display:grid;grid-template-columns:2fr 1fr 1fr auto auto;gap:10px;align-items:center;">' +
+      return '<div class="list-row ag-row" data-grid-row="' + r.id + '" style="display:grid;grid-template-columns:2fr 1fr 1fr auto auto;gap:10px;align-items:center;">' +
         '<input class="input" data-f="label" value="' + esc(r.label) + '" style="padding:10px 12px;font-size:13.5px;">' +
         '<input class="input" data-f="public_price_ht" type="number" step="0.01" min="0" value="' + (r.public_price_ht == null ? "" : r.public_price_ht) + '" placeholder="Public" style="padding:10px 12px;font-size:13.5px;text-align:right;">' +
         '<input class="input" data-f="partner_price_ht" type="number" step="0.01" min="0" value="' + (r.partner_price_ht == null ? "" : r.partner_price_ht) + '" placeholder="Distributeur" style="padding:10px 12px;font-size:13.5px;text-align:right;">' +

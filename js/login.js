@@ -12,6 +12,14 @@
   var msgEl = document.getElementById("l-msg");
   var btn = document.getElementById("l-submit");
 
+  // Déjà connecté (application installée : la session persiste) → espace direct
+  try {
+    var saved = JSON.parse(localStorage.getItem("cta_session"));
+    if (saved && saved.access_token) {
+      window.location.replace((CFG.espacePartenaireUrl || "").trim() || "espace.html");
+    }
+  } catch (e) { /* pas de session enregistrée */ }
+
   function setMsg(msg, isError) {
     msgEl.hidden = !msg;
     msgEl.textContent = msg || "";
@@ -43,7 +51,7 @@
       .then(function (res) {
         if (res.ok && res.j.access_token) {
           try {
-            sessionStorage.setItem("cta_session", JSON.stringify({
+            localStorage.setItem("cta_session", JSON.stringify({
               access_token: res.j.access_token,
               refresh_token: res.j.refresh_token,
               email: email

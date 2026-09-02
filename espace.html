@@ -2,11 +2,18 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Espace partenaires · CTA Conseil Technique Auto</title>
 <meta name="description" content="Espace partenaires CTA : suivi des interventions, devis et factures, grille distributeur et messagerie.">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" type="image/png" href="assets/logo-cta-transparent.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#07090d">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CTA">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -22,11 +29,11 @@
     <a href="index.html" style="display:flex;align-items:center;gap:14px;">
       <img src="assets/logo-cta-transparent.png" alt="CTA Conseil Technique Auto" style="height:34px;width:auto;">
       <span class="nav-sep" style="width:1px;height:24px;background:linear-gradient(rgba(120,150,200,.05),rgba(120,150,200,.4),rgba(120,150,200,.05));"></span>
-      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.16em;color:#4d8dff;text-transform:uppercase;">Espace partenaires</span>
+      <span class="app-label" style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.16em;color:#4d8dff;text-transform:uppercase;">Espace partenaires</span>
     </a>
     <div style="display:flex;align-items:center;gap:14px;">
       <span id="p-type" hidden class="badge badge-blue"></span>
-      <span id="p-company" style="font-size:13.5px;font-weight:700;color:#9fb6d8;white-space:nowrap;"></span>
+      <span id="p-company" class="hide-mobile" style="font-size:13.5px;font-weight:700;color:#9fb6d8;white-space:nowrap;"></span>
       <a id="admin-link" hidden href="admin.html" class="btn-ghost" style="padding:9px 18px;border-radius:999px;border:1px solid rgba(56,212,122,.4);color:#38d47a;font-weight:700;font-size:13px;">Administration</a>
       <button id="logout" class="btn-ghost" style="padding:9px 18px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:13px;cursor:pointer;">Se déconnecter</button>
     </div>
@@ -60,7 +67,7 @@
     <p id="portal-error" hidden style="margin:0 0 24px;padding:14px 18px;border-radius:12px;background:rgba(255,110,110,.08);border:1px solid rgba(255,110,110,.35);color:#ff8c8c;font-size:14px;"></p>
 
     <!-- Onglets -->
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:26px;">
+    <div class="tabs-row" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:26px;">
       <button class="tab active" data-tab="interventions">Interventions</button>
       <button class="tab" data-tab="documents">Devis &amp; factures</button>
       <button class="tab" data-tab="grille">Grille distributeur</button>
@@ -92,7 +99,7 @@
     <!-- Grille distributeur -->
     <section id="tab-grille" hidden>
       <div class="panel-card" style="overflow:hidden;">
-        <div style="display:grid;grid-template-columns:1fr 140px 140px;gap:10px;padding:16px 24px;background:rgba(47,123,255,.08);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8b98ae;">
+        <div class="price-head" style="display:grid;grid-template-columns:1fr 140px 140px;gap:10px;padding:16px 24px;background:rgba(47,123,255,.08);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8b98ae;">
           <span>Prestation</span>
           <span id="grid-col-public" style="text-align:right;">Tarif public</span>
           <span id="grid-col-partner" style="text-align:right;color:#7fadff;">Votre tarif</span>
@@ -136,7 +143,7 @@
               </div>
             </div>
             <div id="thread-msgs" style="display:flex;flex-direction:column;gap:12px;flex:1;"></div>
-            <form id="reply-form" style="display:flex;gap:10px;align-items:flex-end;">
+            <form id="reply-form" class="reply-form" style="display:flex;gap:10px;align-items:flex-end;">
               <textarea id="r-body" class="input" rows="2" maxlength="5000" placeholder="Votre message…" required style="flex:1;resize:vertical;"></textarea>
               <button type="submit" class="btn-primary" style="padding:13px 22px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;box-shadow:0 6px 20px rgba(47,123,255,.35);">Envoyer</button>
             </form>
@@ -149,5 +156,6 @@
 
 <script src="js/config.js"></script>
 <script src="js/espace.js"></script>
+<script src="js/pwa.js"></script>
 </body>
 </html>
