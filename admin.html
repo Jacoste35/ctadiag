@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Administration · CTA Conseil Technique Auto</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" href="assets/logo-cta-transparent.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+
+<div style="min-height:100vh;background:#07090d;overflow-x:hidden;position:relative;">
+  <div style="position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:1100px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(47,123,255,.14) 0%,transparent 65%);pointer-events:none;"></div>
+
+  <header style="position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 28px;background:rgba(7,9,13,.82);backdrop-filter:blur(14px);border-bottom:1px solid rgba(120,150,200,.12);">
+    <a href="index.html" style="display:flex;align-items:center;gap:14px;">
+      <img src="assets/logo-cta-transparent.png" alt="CTA Conseil Technique Auto" style="height:34px;width:auto;">
+      <span class="nav-sep" style="width:1px;height:24px;background:linear-gradient(rgba(120,150,200,.05),rgba(120,150,200,.4),rgba(120,150,200,.05));"></span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.16em;color:#38d47a;text-transform:uppercase;">Administration</span>
+    </a>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <a href="espace.html" class="btn-ghost" style="padding:9px 18px;border-radius:999px;border:1px solid rgba(150,180,230,.3);color:#dfe6f2;font-weight:700;font-size:13px;">Vue client</a>
+      <button id="logout" class="btn-ghost" style="padding:9px 18px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:13px;cursor:pointer;">Se déconnecter</button>
+    </div>
+  </header>
+
+  <main class="section-pad" style="position:relative;max-width:1200px;margin:0 auto;padding:44px 40px 90px;">
+
+    <div style="margin-bottom:30px;">
+      <h1 style="margin:0 0 8px;font-size:clamp(24px,3.4vw,34px);font-weight:900;">Pilotage <span style="background:linear-gradient(90deg,#c9d4e6,#4d8dff);-webkit-background-clip:text;background-clip:text;color:transparent;">CTA</span></h1>
+      <p style="margin:0;color:#9aa6ba;font-size:15px;">Demandes de devis, clients, interventions, facturation, tarifs, messagerie et agenda — tout se gère ici.</p>
+    </div>
+
+    <div class="stat-tiles" style="grid-template-columns:repeat(4,1fr);margin-bottom:34px;">
+      <div class="panel-card" style="position:relative;overflow:hidden;padding:20px 22px;"><div style="position:absolute;top:-1px;left:20px;right:55%;height:2px;background:linear-gradient(90deg,#2f7bff,transparent);"></div><div id="stat-quotes" style="font-size:26px;font-weight:900;background:linear-gradient(90deg,#c9d4e6,#4d8dff);-webkit-background-clip:text;background-clip:text;color:transparent;">—</div><div style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;color:#4d8dff;text-transform:uppercase;">Demandes à traiter</div></div>
+      <div class="panel-card" style="position:relative;overflow:hidden;padding:20px 22px;"><div style="position:absolute;top:-1px;left:20px;right:55%;height:2px;background:linear-gradient(90deg,#2f7bff,transparent);"></div><div id="stat-tickets" style="font-size:26px;font-weight:900;background:linear-gradient(90deg,#c9d4e6,#4d8dff);-webkit-background-clip:text;background-clip:text;color:transparent;">—</div><div style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;color:#4d8dff;text-transform:uppercase;">Tickets ouverts</div></div>
+      <div class="panel-card" style="position:relative;overflow:hidden;padding:20px 22px;"><div style="position:absolute;top:-1px;left:20px;right:55%;height:2px;background:linear-gradient(90deg,#2f7bff,transparent);"></div><div id="stat-interv" style="font-size:26px;font-weight:900;background:linear-gradient(90deg,#c9d4e6,#4d8dff);-webkit-background-clip:text;background-clip:text;color:transparent;">—</div><div style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;color:#4d8dff;text-transform:uppercase;">Interventions à venir</div></div>
+      <div class="panel-card" style="position:relative;overflow:hidden;padding:20px 22px;"><div style="position:absolute;top:-1px;left:20px;right:55%;height:2px;background:linear-gradient(90deg,#2f7bff,transparent);"></div><div id="stat-invoices" style="font-size:26px;font-weight:900;background:linear-gradient(90deg,#c9d4e6,#4d8dff);-webkit-background-clip:text;background-clip:text;color:transparent;">—</div><div style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;color:#4d8dff;text-transform:uppercase;">Factures à encaisser</div></div>
+    </div>
+
+    <p id="portal-error" hidden style="margin:0 0 24px;padding:14px 18px;border-radius:12px;background:rgba(255,110,110,.08);border:1px solid rgba(255,110,110,.35);color:#ff8c8c;font-size:14px;"></p>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:26px;">
+      <button class="tab active" data-tab="demandes">Demandes de devis</button>
+      <button class="tab" data-tab="clients">Clients</button>
+      <button class="tab" data-tab="interventions">Interventions</button>
+      <button class="tab" data-tab="documents">Devis &amp; factures</button>
+      <button class="tab" data-tab="grille">Tarifs</button>
+      <button class="tab" data-tab="tickets">Messagerie</button>
+      <button class="tab" data-tab="agenda">Agenda</button>
+    </div>
+
+    <!-- Demandes de devis -->
+    <section id="tab-demandes">
+      <div class="panel-card" style="overflow:hidden;">
+        <div style="padding:16px 24px;background:rgba(47,123,255,.08);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8b98ae;">Demandes reçues via le site</div>
+        <div id="quotes-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
+      </div>
+    </section>
+
+    <!-- Clients -->
+    <section id="tab-clients" hidden>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+        <p style="margin:0;color:#9aa6ba;font-size:14px;">Clients <strong style="color:#7fadff;">directs</strong> (tarifs publics) et <strong style="color:#38d47a;">distributeurs</strong> (grille dédiée, marque blanche).</p>
+        <button id="new-client-btn" class="btn-primary" style="padding:11px 22px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;box-shadow:0 6px 20px rgba(47,123,255,.35);">+ Nouveau client</button>
+      </div>
+      <form id="client-form" hidden class="panel-card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;padding:22px;margin-bottom:18px;">
+        <input id="c-email" class="input" type="email" placeholder="E-mail *" required>
+        <input id="c-pass" class="input" type="text" placeholder="Mot de passe provisoire *" required minlength="6">
+        <input id="c-company" class="input" placeholder="Société">
+        <input id="c-contact" class="input" placeholder="Contact">
+        <input id="c-phone" class="input" placeholder="Téléphone">
+        <select id="c-type" class="input"><option value="direct">Client direct</option><option value="distributeur">Distributeur</option></select>
+        <button type="submit" class="btn-primary" style="padding:13px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;">Créer le compte</button>
+      </form>
+      <div class="panel-card" style="overflow:hidden;">
+        <div id="clients-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
+      </div>
+    </section>
+
+    <!-- Interventions -->
+    <section id="tab-interventions" hidden>
+      <form id="interv-form" class="panel-card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;padding:22px;margin-bottom:18px;">
+        <select id="iv-client" class="input" required></select>
+        <input id="iv-date" class="input" type="date" required>
+        <input id="iv-slot" class="input" placeholder="Heure (ex. 09:00)">
+        <input id="iv-type" class="input" placeholder="Type d'intervention *" required>
+        <input id="iv-equip" class="input" placeholder="Matériel">
+        <input id="iv-loc" class="input" placeholder="Lieu">
+        <input id="iv-notes" class="input" placeholder="Notes">
+        <button type="submit" class="btn-primary" style="padding:13px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;">+ Planifier</button>
+      </form>
+      <div class="panel-card" style="overflow:hidden;">
+        <div id="ai-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
+      </div>
+    </section>
+
+    <!-- Devis & factures -->
+    <section id="tab-documents" hidden>
+      <form id="doc-form" class="panel-card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;padding:22px;margin-bottom:18px;">
+        <select id="dc-client" class="input" required></select>
+        <select id="dc-kind" class="input"><option value="devis">Devis</option><option value="facture">Facture</option></select>
+        <input id="dc-ref" class="input" placeholder="Référence *" required>
+        <input id="dc-label" class="input" placeholder="Libellé">
+        <input id="dc-amount" class="input" type="number" step="0.01" min="0" placeholder="Montant HT">
+        <input id="dc-date" class="input" type="date">
+        <input id="dc-url" class="input" type="url" placeholder="Lien PDF (optionnel)">
+        <button type="submit" class="btn-primary" style="padding:13px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;">+ Ajouter</button>
+      </form>
+      <div class="panel-card" style="overflow:hidden;">
+        <div id="ad-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
+      </div>
+    </section>
+
+    <!-- Tarifs -->
+    <section id="tab-grille" hidden>
+      <p style="margin:0 0 16px;color:#9aa6ba;font-size:14px;">« Tarif public » = affiché aux clients directs · « Tarif distributeur » = affiché aux distributeurs connectés. La grille publique du site vitrine reste indépendante (fichier <code style="color:#7fadff;">index.html</code>).</p>
+      <form id="grid-add" class="panel-card" style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:12px;padding:18px;margin-bottom:18px;align-items:center;">
+        <input id="g-label" class="input" placeholder="Nouvelle prestation *" required>
+        <input id="g-public" class="input" type="number" step="0.01" min="0" placeholder="Tarif public HT">
+        <input id="g-partner" class="input" type="number" step="0.01" min="0" placeholder="Tarif distributeur HT">
+        <button type="submit" class="btn-primary" style="padding:13px 20px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;">+</button>
+      </form>
+      <div class="panel-card" style="overflow:hidden;">
+        <div id="ag-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
+      </div>
+    </section>
+
+    <!-- Messagerie -->
+    <section id="tab-tickets" hidden>
+      <div class="cols-tickets">
+        <div id="at-list" style="display:flex;flex-direction:column;gap:10px;">
+          <p style="margin:0;padding:6px;color:#5f6d84;font-size:14px;">Chargement…</p>
+        </div>
+        <div class="panel-card" style="padding:24px;min-height:320px;display:flex;flex-direction:column;">
+          <p id="at-empty" style="margin:auto;color:#5f6d84;font-size:14px;text-align:center;">Sélectionnez un ticket.</p>
+          <div id="at-view" hidden style="display:flex;flex-direction:column;flex:1;gap:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid rgba(120,150,200,.12);">
+              <div>
+                <div id="at-subject" style="font-weight:800;font-size:16.5px;"></div>
+                <div id="at-meta" style="margin-top:3px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#5f6d84;"></div>
+              </div>
+              <select id="at-status" class="input" style="padding:9px 14px;width:auto;">
+                <option value="ouvert">Ouvert</option>
+                <option value="en_cours">En cours</option>
+                <option value="resolu">Résolu</option>
+                <option value="ferme">Fermé</option>
+              </select>
+            </div>
+            <div id="at-msgs" style="display:flex;flex-direction:column;gap:12px;flex:1;"></div>
+            <form id="at-reply" style="display:flex;gap:10px;align-items:flex-end;">
+              <textarea id="at-body" class="input" rows="2" maxlength="5000" placeholder="Répondre en tant que CTA…" required style="flex:1;resize:vertical;"></textarea>
+              <button type="submit" class="btn-primary" style="padding:13px 22px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;">Envoyer</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Agenda -->
+    <section id="tab-agenda" hidden>
+      <p style="margin:0 0 16px;color:#9aa6ba;font-size:14px;">Jours bloqués : ils apparaissent immédiatement comme indisponibles dans le calendrier de prise de rendez-vous du site.</p>
+      <form id="blocked-add" class="panel-card" style="display:grid;grid-template-columns:1fr 2fr auto;gap:12px;padding:18px;margin-bottom:18px;align-items:center;">
+        <input id="b-day" class="input" type="date" required>
+        <input id="b-reason" class="input" placeholder="Motif (optionnel — congés, salon, tournée…)">
+        <button type="submit" class="btn-primary" style="padding:13px 20px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;">Bloquer</button>
+      </form>
+      <div class="panel-card" style="overflow:hidden;">
+        <div id="ab-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>
