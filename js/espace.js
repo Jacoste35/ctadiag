@@ -122,13 +122,39 @@
     });
   });
 
+  function fn(name, body, retried) {
+    return fetch(API + "/functions/v1/" + name, {
+      method: "POST",
+      headers: {
+        apikey: KEY,
+        Authorization: "Bearer " + session.access_token,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    }).then(function (r) {
+      if (r.status === 401 && !retried) {
+        return refreshSession().then(function (ok) {
+          if (ok) return fn(name, body, true);
+          logout();
+          throw new Error("session expirée");
+        });
+      }
+      return r.json().then(function (j) {
+        if (!r.ok || j.error) throw new Error(j.error || "HTTP " + r.status);
+        return j;
+      });
+    });
+  }
+
   /* ---------- Profil (type de client : direct / distributeur) ---------- */
   var clientType = "direct";
+  var profileName = "";
   api("cta_partners?select=*&id=eq." + uid).then(function (rows) {
     var p = rows && rows[0];
     if (!p) return;
     clientType = p.client_type || "direct";
     var name = p.contact_name || p.company_name || p.email || "";
+    profileName = p.contact_name || "";
     document.getElementById("p-name").textContent = name;
     document.getElementById("p-company").textContent = p.company_name || p.email || "";
     var typeEl = document.getElementById("p-type");
@@ -198,26 +224,108 @@
     }).join("");
   }).catch(function () { showError("Impossible de charger les interventions : reconnectez-vous ou réessayez plus tard."); });
 
-  /* ---------- Devis & factures ---------- */
-  api("cta_documents?select=*&order=issued_on.desc").then(function (rows) {
+  /* ---------- Devis & factures (lecture et signature en ligne) ---------- */
+  var docs = [];
+  function renderDocs() {
     var host = document.getElementById("docs-list");
     document.getElementById("stat-devis").textContent =
-      rows.filter(function (r) { return r.kind === "devis" && r.status === "en_attente"; }).length;
-    if (!rows.length) {
+      docs.filter(function (r) { return r.kind === "devis" && r.status === "en_attente"; }).length;
+    if (!docs.length) {
       host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Aucun document pour le moment.</p>';
       return;
     }
-    host.innerHTML = rows.map(function (r) {
+    host.innerHTML = docs.map(function (r) {
+      var pending = r.kind === "devis" && r.status === "en_attente";
+      var signInfo = "";
+      if (r.signed_at && r.status === "accepte") {
+        signInfo = '<div style="flex-basis:100%;margin-top:2px;font-size:12px;color:#38d47a;">✍️ Signé électroniquement le ' + esc(fmtDateTime(r.signed_at)) + (r.signed_name ? " par " + esc(r.signed_name) : "") + "</div>";
+      } else if (r.signed_at && r.status === "refuse") {
+        signInfo = '<div style="flex-basis:100%;margin-top:2px;font-size:12px;color:#8b98ae;">Refusé le ' + esc(fmtDateTime(r.signed_at)) + "</div>";
+      }
       return '<div class="list-row">' +
         '<span class="badge ' + (r.kind === "devis" ? "badge-blue" : "badge-grey") + '">' + (r.kind === "devis" ? "Devis" : "Facture") + "</span>" +
         '<div style="flex:1;min-width:220px;"><div style="font-weight:800;font-size:15px;">' + esc(r.reference) + (r.label ? ' <span style="font-weight:600;color:#93a0b5;">· ' + esc(r.label) + "</span>" : "") + "</div>" +
         '<div style="margin-top:3px;font-size:12.5px;color:#5f6d84;">Émis le ' + esc(fmtDate(r.issued_on)) + "</div></div>" +
         '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:15px;color:#fff;min-width:110px;text-align:right;">' + esc(eur(r.amount_ht)) + "</div>" +
         badge(r.status) +
+        (pending
+          ? '<button type="button" class="btn-primary" data-sign="' + r.id + '" style="padding:9px 18px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:12.5px;cursor:pointer;box-shadow:0 4px 14px rgba(47,123,255,.35);">✍️ Lire &amp; signer</button>'
+          : "") +
         (r.file_url ? '<a href="' + esc(r.file_url) + '" target="_blank" rel="noopener" style="font-size:13px;font-weight:700;">Télécharger ↗</a>' : "") +
+        signInfo +
         "</div>";
     }).join("");
-  }).catch(function () { showError("Impossible de charger les documents : reconnectez-vous ou réessayez plus tard."); });
+    host.querySelectorAll("[data-sign]").forEach(function (b) {
+      b.addEventListener("click", function () { openSignModal(b.dataset.sign); });
+    });
+  }
+  function loadDocuments() {
+    return api("cta_documents?select=*&order=issued_on.desc").then(function (rows) {
+      docs = rows;
+      renderDocs();
+    });
+  }
+  loadDocuments().catch(function () { showError("Impossible de charger les documents : reconnectez-vous ou réessayez plus tard."); });
+
+  /* ---------- Signature d'un devis ---------- */
+  var currentSignDoc = null;
+  function openSignModal(id) {
+    var r = docs.find(function (x) { return x.id === id; });
+    if (!r) return;
+    currentSignDoc = r;
+    document.getElementById("sign-title").textContent = "Devis " + r.reference;
+    document.getElementById("sign-details").innerHTML =
+      (r.label ? "<strong>" + esc(r.label) + "</strong><br>" : "") +
+      "Montant : <strong>" + esc(eur(r.amount_ht)) + "</strong><br>" +
+      "Émis le " + esc(fmtDate(r.issued_on)) +
+      '<br><span style="color:#8b98ae;font-size:12.5px;">Tarifs hors taxes, frais de déplacement éventuels précisés sur le devis.</span>';
+    var pdf = document.getElementById("sign-pdf");
+    pdf.hidden = !r.file_url;
+    if (r.file_url) pdf.href = r.file_url;
+    document.getElementById("sign-consent").checked = false;
+    document.getElementById("sign-name").value = profileName;
+    var msg = document.getElementById("sign-msg");
+    msg.hidden = true;
+    document.getElementById("sign-modal").hidden = false;
+  }
+  function signMsg(text) {
+    var msg = document.getElementById("sign-msg");
+    msg.hidden = false;
+    msg.textContent = text;
+  }
+  document.getElementById("sign-close").addEventListener("click", function () {
+    document.getElementById("sign-modal").hidden = true;
+  });
+  document.getElementById("sign-form").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    if (!currentSignDoc) return;
+    if (!document.getElementById("sign-consent").checked) {
+      signMsg("Merci de cocher la case de lecture et d'acceptation.");
+      return;
+    }
+    var name = document.getElementById("sign-name").value.trim();
+    if (name.length < 2) {
+      signMsg("Merci d'indiquer votre nom et prénom : c'est votre signature.");
+      return;
+    }
+    fn("sign-quote", { document_id: currentSignDoc.id, action: "accept", signed_name: name })
+      .then(function () {
+        document.getElementById("sign-modal").hidden = true;
+        return loadDocuments();
+      })
+      .catch(function (e) { signMsg("Signature impossible : " + e.message); });
+  });
+  document.getElementById("sign-refuse").addEventListener("click", function () {
+    if (!currentSignDoc) return;
+    if (!window.confirm("Refuser le devis " + currentSignDoc.reference + " ?")) return;
+    var reason = window.prompt("Motif du refus (optionnel) :") || "";
+    fn("sign-quote", { document_id: currentSignDoc.id, action: "refuse", refusal_reason: reason })
+      .then(function () {
+        document.getElementById("sign-modal").hidden = true;
+        return loadDocuments();
+      })
+      .catch(function (e) { signMsg("Refus impossible : " + e.message); });
+  });
 
   /* ---------- Grille tarifaire (distributeur : tarif remisé · direct : tarif public) ---------- */
   var gridRows = null;
