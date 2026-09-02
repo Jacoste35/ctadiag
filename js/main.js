@@ -1,4 +1,4 @@
-/* CTA · Conseil Technique Auto — logique du site
+/* CTA · Conseil Technique Auto · logique du site
    Reveal au scroll, menu mobile, calendrier de rendez-vous, formulaire de devis
    (envoi vers le backend Supabase avec repli mailto:), connexion espace partenaires. */
 (function () {
@@ -59,7 +59,7 @@
     } else {
       boutiqueLink.removeAttribute("target");
       boutiqueLink.href = "#contact";
-      boutiqueLink.title = "Boutique en cours d'ouverture — contactez-nous";
+      boutiqueLink.title = "Boutique en cours d'ouverture, contactez-nous";
     }
   }
 
@@ -264,7 +264,7 @@
       }
       if (!API || !KEY) {
         mailtoFallback(payload);
-        setStatus("E-mail préparé ✓ — envoyez-le depuis votre messagerie.");
+        setStatus("E-mail préparé ✓ : envoyez-le depuis votre messagerie.");
         return;
       }
       submitBtn.disabled = true;
@@ -291,7 +291,7 @@
         })
         .catch(function () {
           submitBtn.textContent = "Envoyer la demande de devis";
-          setStatus("L'envoi direct a échoué — un e-mail prérempli va s'ouvrir dans votre messagerie.", true);
+          setStatus("L'envoi direct a échoué : un e-mail prérempli va s'ouvrir dans votre messagerie.", true);
           mailtoFallback(payload);
         })
         .finally(function () {

@@ -1,4 +1,4 @@
-/* Page de connexion — authentification sur le backend Supabase (Auth).
+/* Page de connexion · authentification sur le backend Supabase (Auth).
    En cas de succès : redirection vers l'espace partenaires si une URL est
    configurée dans js/config.js, sinon message de confirmation. */
 (function () {

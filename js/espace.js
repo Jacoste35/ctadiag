@@ -1,4 +1,4 @@
-/* Espace partenaires — page protégée.
+/* Espace partenaires · page protégée.
    Session Supabase Auth requise (déposée par la page de connexion) ;
    données lues/écrites via l'API REST du backend, protégées par RLS. */
 (function () {
@@ -83,7 +83,7 @@
       .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
   function fmtDate(iso) {
-    if (!iso) return "—";
+    if (!iso) return "";
     var p = String(iso).slice(0, 10).split("-").map(Number);
     return new Date(p[0], p[1] - 1, p[2]).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
   }
@@ -142,7 +142,7 @@
       document.getElementById("grid-col-public").textContent = "";
       document.getElementById("grid-col-partner").textContent = "Tarif HT";
       document.getElementById("grid-note").textContent =
-        "Tarifs HT, hors frais de déplacement. Devis personnalisé pour interventions multiples — et grille distributeur dédiée si vous revendez du matériel : parlez-en avec nous.";
+        "Tarifs HT, hors frais de déplacement. Devis personnalisé pour interventions multiples ; grille distributeur dédiée si vous revendez du matériel : parlez-en avec nous.";
     }
     renderGrid();
   }).catch(function () { /* non bloquant */ });
@@ -160,11 +160,11 @@
       return '<div class="list-row">' +
         '<div style="min-width:120px;font-family:\'IBM Plex Mono\',monospace;font-size:13px;color:#c9d4e6;">' + esc(fmtDate(r.date)) + (r.time_slot ? " · " + esc(r.time_slot) : "") + "</div>" +
         '<div style="flex:1;min-width:220px;"><div style="font-weight:800;font-size:15px;">' + esc(r.type) + "</div>" +
-        '<div style="margin-top:3px;font-size:13px;color:#93a0b5;">' + esc(r.equipment || "") + (r.location ? " — " + esc(r.location) : "") + "</div>" +
+        '<div style="margin-top:3px;font-size:13px;color:#93a0b5;">' + esc(r.equipment || "") + (r.location ? " · " + esc(r.location) : "") + "</div>" +
         (r.notes ? '<div style="margin-top:4px;font-size:12.5px;color:#5f6d84;">' + esc(r.notes) + "</div>" : "") + "</div>" +
         badge(r.status) + "</div>";
     }).join("");
-  }).catch(function () { showError("Impossible de charger les interventions — reconnectez-vous ou réessayez plus tard."); });
+  }).catch(function () { showError("Impossible de charger les interventions : reconnectez-vous ou réessayez plus tard."); });
 
   /* ---------- Devis & factures ---------- */
   api("cta_documents?select=*&order=issued_on.desc").then(function (rows) {
@@ -178,14 +178,14 @@
     host.innerHTML = rows.map(function (r) {
       return '<div class="list-row">' +
         '<span class="badge ' + (r.kind === "devis" ? "badge-blue" : "badge-grey") + '">' + (r.kind === "devis" ? "Devis" : "Facture") + "</span>" +
-        '<div style="flex:1;min-width:220px;"><div style="font-weight:800;font-size:15px;">' + esc(r.reference) + (r.label ? ' <span style="font-weight:600;color:#93a0b5;">— ' + esc(r.label) + "</span>" : "") + "</div>" +
+        '<div style="flex:1;min-width:220px;"><div style="font-weight:800;font-size:15px;">' + esc(r.reference) + (r.label ? ' <span style="font-weight:600;color:#93a0b5;">· ' + esc(r.label) + "</span>" : "") + "</div>" +
         '<div style="margin-top:3px;font-size:12.5px;color:#5f6d84;">Émis le ' + esc(fmtDate(r.issued_on)) + "</div></div>" +
         '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:15px;color:#fff;min-width:110px;text-align:right;">' + esc(eur(r.amount_ht)) + "</div>" +
         badge(r.status) +
         (r.file_url ? '<a href="' + esc(r.file_url) + '" target="_blank" rel="noopener" style="font-size:13px;font-weight:700;">Télécharger ↗</a>' : "") +
         "</div>";
     }).join("");
-  }).catch(function () { showError("Impossible de charger les documents — reconnectez-vous ou réessayez plus tard."); });
+  }).catch(function () { showError("Impossible de charger les documents : reconnectez-vous ou réessayez plus tard."); });
 
   /* ---------- Grille tarifaire (distributeur : tarif remisé · direct : tarif public) ---------- */
   var gridRows = null;
@@ -193,7 +193,7 @@
     if (gridRows === null) return;
     var host = document.getElementById("grid-list");
     if (!gridRows.length) {
-      host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Grille en cours de préparation — contactez-nous pour un devis.</p>';
+      host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Grille en cours de préparation : contactez-nous pour un devis.</p>';
       return;
     }
     var distrib = clientType === "distributeur";
@@ -211,7 +211,7 @@
   api("cta_price_grid?select=*&order=sort.asc").then(function (rows) {
     gridRows = rows;
     renderGrid();
-  }).catch(function () { showError("Impossible de charger la grille tarifaire — reconnectez-vous ou réessayez plus tard."); });
+  }).catch(function () { showError("Impossible de charger la grille tarifaire : reconnectez-vous ou réessayez plus tard."); });
 
   /* ---------- Messagerie / tickets ---------- */
   var tickets = [];
@@ -225,7 +225,7 @@
   function renderTicketList() {
     var host = document.getElementById("ticket-list");
     if (!tickets.length) {
-      host.innerHTML = '<p style="margin:0;padding:6px;color:#5f6d84;font-size:14px;">Aucun ticket — ouvrez-en un si besoin.</p>';
+      host.innerHTML = '<p style="margin:0;padding:6px;color:#5f6d84;font-size:14px;">Aucun ticket : ouvrez-en un si besoin.</p>';
       return;
     }
     host.innerHTML = tickets.map(function (t) {
@@ -287,7 +287,7 @@
       renderThread();
     });
   }
-  loadTickets(false).catch(function () { showError("Impossible de charger la messagerie — reconnectez-vous ou réessayez plus tard."); });
+  loadTickets(false).catch(function () { showError("Impossible de charger la messagerie : reconnectez-vous ou réessayez plus tard."); });
 
   // Nouveau ticket
   var ticketForm = document.getElementById("ticket-form");
@@ -317,7 +317,7 @@
         currentTicket = id;
         return loadTickets(true);
       })
-      .catch(function () { showError("L'envoi du ticket a échoué — réessayez ou écrivez-nous à " + (CFG.emailContact || "contact@cta-auto.fr") + "."); });
+      .catch(function () { showError("L'envoi du ticket a échoué : réessayez ou écrivez-nous à " + (CFG.emailContact || "contact@cta-auto.fr") + "."); });
   });
 
   // Réponse dans un ticket
@@ -333,7 +333,7 @@
         document.getElementById("r-body").value = "";
         return loadTickets(true);
       })
-      .catch(function () { showError("L'envoi du message a échoué — réessayez plus tard."); });
+      .catch(function () { showError("L'envoi du message a échoué : réessayez plus tard."); });
   });
 
   // Marquer résolu
@@ -341,6 +341,6 @@
     if (!currentTicket) return;
     api("cta_tickets?id=eq." + currentTicket, { method: "PATCH", body: { status: "resolu" } })
       .then(function () { return loadTickets(true); })
-      .catch(function () { showError("Impossible de mettre à jour le ticket — réessayez plus tard."); });
+      .catch(function () { showError("Impossible de mettre à jour le ticket : réessayez plus tard."); });
   });
 })();

@@ -1,4 +1,4 @@
-/* Back-office CTA — réservé au compte administrateur.
+/* Back-office CTA · réservé au compte administrateur.
    Toutes les données passent par l'API REST du backend (RLS : policies admin)
    et par la fonction Edge admin-users pour la gestion des comptes. */
 (function () {
@@ -98,7 +98,7 @@
       .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
   function fmtDate(iso) {
-    if (!iso) return "—";
+    if (!iso) return "";
     var p = String(iso).slice(0, 10).split("-").map(Number);
     return new Date(p[0], p[1] - 1, p[2]).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
   }
@@ -107,7 +107,7 @@
            new Date(ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   }
   function eur(n) {
-    return n == null ? "—" : Number(n).toLocaleString("fr-FR", { minimumFractionDigits: Number(n) % 1 ? 2 : 0 }) + " €";
+    return n == null ? "" : Number(n).toLocaleString("fr-FR", { minimumFractionDigits: Number(n) % 1 ? 2 : 0 }) + " €";
   }
   var STATUS = {
     planifiee: ["Planifiée", "badge-blue"], en_cours: ["En cours", "badge-amber"],
@@ -155,7 +155,7 @@
       return;
     }
     loadAll();
-  }).catch(function () { showError("Impossible de vérifier vos droits — reconnectez-vous."); });
+  }).catch(function () { showError("Impossible de vérifier vos droits : reconnectez-vous."); });
 
   /* ---------- Onglets ---------- */
   var tabs = document.querySelectorAll(".tab");
@@ -194,8 +194,8 @@
       var next = interventions
         .filter(function (r) { return r.date > today && r.status === "planifiee"; })
         .sort(function (a, b) { return a.date < b.date ? -1 : 1; })[0];
-      host.innerHTML = '<p style="margin:0;color:#8b98ae;font-size:14px;line-height:1.6;">Aucune intervention aujourd\'hui — profitez-en pour souffler 😌' +
-        (next ? '<br><span style="color:#5f6d84;font-size:13px;">Prochaine intervention : <strong style="color:#7fadff;">' + esc(fmtDate(next.date)) + (next.time_slot ? " à " + esc(next.time_slot) : "") + "</strong> — " + esc(next.type) + " (" + esc(clientName(next.partner_id)) + ")</span>" : "") + "</p>";
+      host.innerHTML = '<p style="margin:0;color:#8b98ae;font-size:14px;line-height:1.6;">Aucune intervention aujourd\'hui : profitez-en pour souffler 😌' +
+        (next ? '<br><span style="color:#5f6d84;font-size:13px;">Prochaine intervention : <strong style="color:#7fadff;">' + esc(fmtDate(next.date)) + (next.time_slot ? " à " + esc(next.time_slot) : "") + "</strong> · " + esc(next.type) + " (" + esc(clientName(next.partner_id)) + ")</span>" : "") + "</p>";
       return;
     }
     host.innerHTML = rows.map(function (r) {
@@ -254,7 +254,7 @@
       renderInterventions(); renderDocuments(); renderGrid();
       renderTicketList(); renderThread(); renderBlocked();
     }).catch(function () {
-      showError("Chargement impossible — vérifiez votre connexion ou reconnectez-vous.");
+      showError("Chargement impossible : vérifiez votre connexion ou reconnectez-vous.");
     });
   }
 
@@ -376,8 +376,8 @@
     var opts = clients.map(function (c) {
       return '<option value="' + c.id + '">' + esc(c.company_name || c.email) + "</option>";
     }).join("");
-    document.getElementById("iv-client").innerHTML = '<option value="">— Client —</option>' + opts;
-    document.getElementById("dc-client").innerHTML = '<option value="">— Client —</option>' + opts;
+    document.getElementById("iv-client").innerHTML = '<option value="">Choisir un client</option>' + opts;
+    document.getElementById("dc-client").innerHTML = '<option value="">Choisir un client</option>' + opts;
   }
 
   var clientForm = document.getElementById("client-form");
@@ -414,8 +414,8 @@
       return '<div class="list-row" data-iv-row="' + r.id + '">' +
         '<div style="min-width:120px;font-family:\'IBM Plex Mono\',monospace;font-size:13px;color:#c9d4e6;">' + esc(fmtDate(r.date)) + (r.time_slot ? " · " + esc(r.time_slot) : "") + "</div>" +
         '<div style="flex:1;min-width:220px;">' +
-        '<div style="font-weight:800;font-size:14.5px;">' + esc(r.type) + ' <span style="font-weight:600;color:#7fadff;">— ' + esc(clientName(r.partner_id)) + "</span></div>" +
-        '<div style="margin-top:3px;font-size:13px;color:#93a0b5;">' + esc(r.equipment || "") + (r.location ? " — " + esc(r.location) : "") + (r.notes ? " · " + esc(r.notes) : "") + "</div></div>" +
+        '<div style="font-weight:800;font-size:14.5px;">' + esc(r.type) + ' <span style="font-weight:600;color:#7fadff;">· ' + esc(clientName(r.partner_id)) + "</span></div>" +
+        '<div style="margin-top:3px;font-size:13px;color:#93a0b5;">' + esc(r.equipment || "") + (r.location ? " · " + esc(r.location) : "") + (r.notes ? " · " + esc(r.notes) : "") + "</div></div>" +
         statusSelect(r.status, ["planifiee", "en_cours", "terminee", "annulee"], "iv-status") +
         '<button ' + DANGER_BTN + ' data-iv-del="' + r.id + '">✕</button>' +
         "</div>";
@@ -474,7 +474,7 @@
       return '<div class="list-row" data-doc-row="' + r.id + '">' +
         '<span class="badge ' + (r.kind === "devis" ? "badge-blue" : "badge-grey") + '">' + (r.kind === "devis" ? "Devis" : "Facture") + "</span>" +
         '<div style="flex:1;min-width:220px;">' +
-        '<div style="font-weight:800;font-size:14.5px;">' + esc(r.reference) + ' <span style="font-weight:600;color:#7fadff;">— ' + esc(clientName(r.partner_id)) + "</span></div>" +
+        '<div style="font-weight:800;font-size:14.5px;">' + esc(r.reference) + ' <span style="font-weight:600;color:#7fadff;">· ' + esc(clientName(r.partner_id)) + "</span></div>" +
         '<div style="margin-top:3px;font-size:12.5px;color:#93a0b5;">' + esc(r.label || "") + " · émis le " + esc(fmtDate(r.issued_on)) + "</div></div>" +
         '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:14px;color:#fff;min-width:90px;text-align:right;">' + esc(eur(r.amount_ht)) + " HT</div>" +
         statusSelect(r.status, statuses, "doc-status") +
@@ -693,7 +693,7 @@
         });
       })
       .catch(function () {
-        document.getElementById("cal-url").value = "Lien indisponible — rechargez la page.";
+        document.getElementById("cal-url").value = "Lien indisponible : rechargez la page.";
       });
   }
   setupCalendarSync();
@@ -715,7 +715,7 @@
       } else {
         lines.push("DTSTART;VALUE=DATE:" + start);
       }
-      lines.push("SUMMARY:" + icsEsc(iv.type + (partner && partner.company_name ? " — " + partner.company_name : "")));
+      lines.push("SUMMARY:" + icsEsc(iv.type + (partner && partner.company_name ? " · " + partner.company_name : "")));
       var loc = iv.location || (partner && partner.address) || "";
       if (loc) lines.push("LOCATION:" + icsEsc(loc));
       lines.push("END:VEVENT");
@@ -723,7 +723,7 @@
     blockedDates.forEach(function (b) {
       lines.push("BEGIN:VEVENT", "UID:blocked-" + b.day + "@cta-auto",
         "DTSTART;VALUE=DATE:" + b.day.replace(/-/g, ""),
-        "SUMMARY:" + icsEsc("Indisponible" + (b.reason ? " — " + b.reason : "")), "END:VEVENT");
+        "SUMMARY:" + icsEsc("Indisponible" + (b.reason ? " · " + b.reason : "")), "END:VEVENT");
     });
     lines.push("END:VCALENDAR");
     var blob = new Blob([lines.join("\r\n")], { type: "text/calendar;charset=utf-8" });
@@ -739,13 +739,13 @@
   function renderBlocked() {
     var host = document.getElementById("ab-list");
     if (!blockedDates.length) {
-      host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Aucun jour bloqué — tous les jours ouvrés sont proposés à la réservation.</p>';
+      host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Aucun jour bloqué : tous les jours ouvrés sont proposés à la réservation.</p>';
       return;
     }
     host.innerHTML = blockedDates.map(function (r) {
       return '<div class="list-row">' +
         '<div style="min-width:150px;font-family:\'IBM Plex Mono\',monospace;font-size:13.5px;color:#c9d4e6;">' + esc(fmtDate(r.day)) + "</div>" +
-        '<div style="flex:1;font-size:13.5px;color:#93a0b5;">' + esc(r.reason || "—") + "</div>" +
+        '<div style="flex:1;font-size:13.5px;color:#93a0b5;">' + esc(r.reason || "") + "</div>" +
         '<button ' + DANGER_BTN + ' data-blocked-del="' + r.day + '">Débloquer</button>' +
         "</div>";
     }).join("");
