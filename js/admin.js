@@ -306,6 +306,33 @@
     if (current) eqSel.value = current;
   }
 
+  /* ---------- Chiffre d'affaires (interventions terminées) ---------- */
+  function isoOf(d) {
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function renderCA() {
+    var now = new Date();
+    var today = isoOf(now);
+    var monday = new Date(now);
+    monday.setDate(now.getDate() - ((now.getDay() + 6) % 7)); // lundi de la semaine en cours
+    var weekStart = isoOf(monday);
+    var monthPrefix = today.slice(0, 7);
+    var done = interventions.filter(function (r) { return r.status === "terminee" && r.amount_ht != null && r.date; });
+    function sum(rows) {
+      var t = 0;
+      rows.forEach(function (r) { t += Number(r.amount_ht) || 0; });
+      return t.toLocaleString("fr-FR", { minimumFractionDigits: t % 1 ? 2 : 0 }) + " €";
+    }
+    document.getElementById("ca-day").textContent = sum(done.filter(function (r) { return r.date === today; }));
+    document.getElementById("ca-week").textContent = sum(done.filter(function (r) { return r.date >= weekStart && r.date <= today; }));
+    document.getElementById("ca-month").textContent = sum(done.filter(function (r) { return r.date.slice(0, 7) === monthPrefix; }));
+    var missing = interventions.filter(function (r) { return r.status === "terminee" && r.amount_ht == null; }).length;
+    var note = document.getElementById("ca-note");
+    note.hidden = !missing;
+    if (missing) note.textContent = "⚠️ " + missing + " intervention" + (missing > 1 ? "s" : "") +
+      " terminée" + (missing > 1 ? "s" : "") + " sans montant HT : renseignez-le dans l'onglet Interventions pour un CA exact.";
+  }
+
   function refreshStats() {
     document.getElementById("stat-quotes").textContent =
       quotes.filter(function (q) { return q.status === "new"; }).length +
@@ -335,7 +362,7 @@
         var activePool = tickets.filter(function (t) { return !t.archived; });
         if (activePool.length) currentTicket = activePool[0].id;
       }
-      refreshStats(); renderToday(); renderWeek();
+      refreshStats(); renderToday(); renderWeek(); renderCA();
       renderQuotes(); renderClients(); renderClientSelects();
       renderInterventions(); renderDocuments(); renderGrid();
       renderTicketList(); renderThread(); renderBlocked();
@@ -536,17 +563,29 @@
         '<div style="flex:1;min-width:220px;">' +
         '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span style="font-weight:800;font-size:14.5px;">' + esc(r.type) + '</span>' + catChip(r.category) + ' <span style="font-weight:600;font-size:13.5px;color:#7fadff;">· ' + esc(clientName(r.partner_id)) + (endClient ? " → 🏁 " + esc(endClient) : "") + "</span></div>" +
         '<div style="margin-top:3px;font-size:13px;color:#93a0b5;">' + esc(r.equipment || "") + (r.location ? " · " + esc(r.location) : "") + (r.notes ? " · " + esc(r.notes) : "") + "</div></div>" +
+        '<input class="input iv-amount" type="number" step="0.01" min="0" value="' + (r.amount_ht == null ? "" : r.amount_ht) + '" placeholder="€ HT" title="Montant HT facturable" style="width:96px;padding:8px 10px;font-size:13px;text-align:right;">' +
         statusSelect(r.status, ["planifiee", "en_cours", "terminee", "annulee"], "iv-status") +
         '<button ' + DANGER_BTN + ' data-iv-del="' + r.id + '">✕</button>' +
         "</div>";
     }).join("");
+    host.querySelectorAll(".iv-amount").forEach(function (inp) {
+      inp.addEventListener("change", function () {
+        var id = inp.closest("[data-iv-row]").dataset.ivRow;
+        var val = inp.value === "" ? null : Number(inp.value);
+        api("cta_interventions?id=eq." + id, { method: "PATCH", body: { amount_ht: val } })
+          .then(function () {
+            interventions.find(function (x) { return x.id === id; }).amount_ht = val;
+            renderCA();
+          }).catch(function () { showError("Montant non enregistré."); });
+      });
+    });
     host.querySelectorAll(".iv-status").forEach(function (sel) {
       sel.addEventListener("change", function () {
         var id = sel.closest("[data-iv-row]").dataset.ivRow;
         api("cta_interventions?id=eq." + id, { method: "PATCH", body: { status: sel.value } })
           .then(function () {
             interventions.find(function (x) { return x.id === id; }).status = sel.value;
-            refreshStats(); renderToday(); renderWeek();
+            refreshStats(); renderToday(); renderWeek(); renderCA();
           }).catch(function () { showError("Mise à jour impossible."); });
       });
     });
@@ -556,7 +595,7 @@
         api("cta_interventions?id=eq." + b.dataset.ivDel, { method: "DELETE" })
           .then(function () {
             interventions = interventions.filter(function (x) { return x.id !== b.dataset.ivDel; });
-            refreshStats(); renderToday(); renderWeek(); renderInterventions();
+            refreshStats(); renderToday(); renderWeek(); renderCA(); renderInterventions();
           }).catch(function () { showError("Suppression impossible."); });
       });
     });
@@ -618,7 +657,8 @@
       category: catVal || "autre",
       equipment: equipVal || null,
       location: document.getElementById("iv-loc").value.trim() || null,
-      notes: document.getElementById("iv-notes").value.trim() || null
+      notes: document.getElementById("iv-notes").value.trim() || null,
+      amount_ht: document.getElementById("iv-amount").value === "" ? null : Number(document.getElementById("iv-amount").value)
     };
     if (!body.partner_id || !body.date || !body.type) return;
     api("cta_interventions", { method: "POST", body: body })
@@ -642,7 +682,7 @@
               renderIReqs(); refreshStats();
             }).catch(function () { /* la demande restera à traiter */ });
         }
-        refreshStats(); renderToday(); renderWeek(); renderInterventions(); renderCatFilter(); renderEndClientsAdmin();
+        refreshStats(); renderToday(); renderWeek(); renderCA(); renderInterventions(); renderCatFilter(); renderEndClientsAdmin();
       })
       .catch(function () { showError("Création impossible."); });
   });
