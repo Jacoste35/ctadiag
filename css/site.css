@@ -75,7 +75,7 @@ input::placeholder, textarea::placeholder { color: #5f6d84; }
 }
 
 @media (max-width: 860px) {
-  .nav-links, .nav-sep { display: none; }
+  .nav-links, .nav-sep, .nav-login { display: none; }
   .nav-burger {
     display: flex; align-items: center; justify-content: center;
     width: 38px; height: 38px; border-radius: 999px;
