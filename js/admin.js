@@ -577,6 +577,14 @@
         '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:14px;color:#fff;min-width:90px;text-align:right;">' + esc(eur(r.amount_ht)) + " HT</div>" +
         statusSelect(r.status, statuses, "doc-status") +
         '<button ' + DANGER_BTN + ' data-doc-del="' + r.id + '">✕</button>' +
+        (r.signed_at
+          ? '<div style="flex-basis:100%;margin-top:2px;font-size:12px;color:' + (r.status === "refuse" ? "#8b98ae" : "#38d47a") + ';">✍️ ' +
+            (r.status === "refuse" ? "Refusé" : "Signé électroniquement") + " le " + esc(fmtDateTime(r.signed_at)) +
+            (r.signed_name ? " par " + esc(r.signed_name) : "") +
+            (r.refusal_reason ? " · motif : " + esc(r.refusal_reason) : "") +
+            (r.signature_hash ? ' · <span style="font-family:\'IBM Plex Mono\',monospace;color:#5f6d84;" title="Empreinte SHA-256 du dossier de preuve">' + esc(r.signature_hash.slice(0, 16)) + "…</span>" : "") +
+            "</div>"
+          : "") +
         "</div>";
     }).join("");
     host.querySelectorAll(".doc-status").forEach(function (sel) {
