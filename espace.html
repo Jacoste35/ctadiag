@@ -154,6 +154,21 @@
   </main>
 </div>
 
+<!-- Changement de mot de passe obligatoire (mot de passe provisoire) -->
+<div id="pwd-modal" hidden style="position:fixed;inset:0;z-index:100;background:rgba(4,6,10,.86);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;">
+  <div class="panel-card" style="position:relative;overflow:hidden;width:100%;max-width:420px;padding:32px 28px;">
+    <div style="position:absolute;top:-1px;left:24px;right:35%;height:2px;background:linear-gradient(90deg,transparent,#2f7bff,transparent);"></div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;"><span style="font-size:24px;">🔑</span><h2 style="margin:0;font-size:19px;font-weight:900;">Choisissez votre mot de passe</h2></div>
+    <p style="margin:0 0 20px;font-size:13.5px;line-height:1.6;color:#9aa6ba;">Votre mot de passe actuel est provisoire : pour sécuriser votre compte, choisissez-en un nouveau (6 caractères minimum).</p>
+    <form id="pwd-form" style="display:flex;flex-direction:column;gap:12px;">
+      <input id="pwd-new" type="password" autocomplete="new-password" required minlength="6" placeholder="Nouveau mot de passe" class="input">
+      <input id="pwd-confirm" type="password" autocomplete="new-password" required minlength="6" placeholder="Confirmez le mot de passe" class="input">
+      <button type="submit" class="btn-primary" style="padding:14px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:14.5px;cursor:pointer;box-shadow:0 8px 26px rgba(47,123,255,.35);">Enregistrer et continuer</button>
+      <p id="pwd-msg" hidden style="margin:0;text-align:center;font-size:13px;color:#ff8c8c;"></p>
+    </form>
+  </div>
+</div>
+
 <script src="js/config.js"></script>
 <script src="js/espace.js"></script>
 <script src="js/pwa.js"></script>

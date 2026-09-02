@@ -57,6 +57,15 @@
       </div>
     </div>
 
+    <!-- Semaine à venir -->
+    <div class="panel-card" style="position:relative;overflow:hidden;padding:24px;margin-bottom:26px;">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px;">
+        <h2 style="margin:0;font-size:17px;font-weight:900;color:#dfe6f2;">📅 La semaine à venir</h2>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#5f6d84;">7 prochains jours</span>
+      </div>
+      <div id="week-list"><p style="margin:0;color:#5f6d84;font-size:14px;">Chargement…</p></div>
+    </div>
+
     <div class="stat-tiles" style="grid-template-columns:repeat(4,1fr);margin-bottom:34px;">
       <div class="panel-card" style="position:relative;overflow:hidden;padding:20px 22px;"><div style="position:absolute;top:-1px;left:20px;right:55%;height:2px;background:linear-gradient(90deg,#2f7bff,transparent);"></div><div id="stat-quotes" style="font-size:26px;font-weight:900;background:linear-gradient(90deg,#c9d4e6,#4d8dff);-webkit-background-clip:text;background-clip:text;color:transparent;">…</div><div style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;color:#4d8dff;text-transform:uppercase;">Demandes à traiter</div></div>
       <div class="panel-card" style="position:relative;overflow:hidden;padding:20px 22px;"><div style="position:absolute;top:-1px;left:20px;right:55%;height:2px;background:linear-gradient(90deg,#2f7bff,transparent);"></div><div id="stat-tickets" style="font-size:26px;font-weight:900;background:linear-gradient(90deg,#c9d4e6,#4d8dff);-webkit-background-clip:text;background-clip:text;color:transparent;">…</div><div style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;color:#4d8dff;text-transform:uppercase;">Tickets ouverts</div></div>
@@ -72,6 +81,7 @@
       <button class="tab" data-tab="interventions">Interventions</button>
       <button class="tab" data-tab="documents">Devis &amp; factures</button>
       <button class="tab" data-tab="grille">Tarifs</button>
+      <button class="tab" data-tab="materiel">Matériel</button>
       <button class="tab" data-tab="tickets">Messagerie</button>
       <button class="tab" data-tab="agenda">Agenda</button>
     </div>
@@ -87,12 +97,12 @@
     <!-- Clients -->
     <section id="tab-clients" hidden>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
-        <p style="margin:0;color:#9aa6ba;font-size:14px;">Clients <strong style="color:#7fadff;">directs</strong> (tarifs publics) et <strong style="color:#38d47a;">distributeurs</strong> (grille dédiée, marque blanche).</p>
+        <p style="margin:0;color:#9aa6ba;font-size:14px;">Clients <strong style="color:#7fadff;">directs</strong> (tarifs publics) et <strong style="color:#38d47a;">distributeurs</strong> (grille dédiée, marque blanche). Le mot de passe initial est provisoire : le client doit le changer à sa première connexion.</p>
         <button id="new-client-btn" class="btn-primary" style="padding:11px 22px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;box-shadow:0 6px 20px rgba(47,123,255,.35);">+ Nouveau client</button>
       </div>
       <form id="client-form" hidden class="panel-card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;padding:22px;margin-bottom:18px;">
         <input id="c-email" class="input" type="email" placeholder="E-mail *" required>
-        <input id="c-pass" class="input" type="text" placeholder="Mot de passe provisoire *" required minlength="6">
+        <input id="c-pass" class="input" type="text" placeholder="Mot de passe (défaut : nom du garage)" minlength="6">
         <input id="c-company" class="input" placeholder="Société">
         <input id="c-contact" class="input" placeholder="Contact">
         <input id="c-phone" class="input" placeholder="Téléphone">
@@ -110,10 +120,20 @@
       <form id="interv-form" class="panel-card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;padding:22px;margin-bottom:18px;">
         <select id="iv-client" class="input" required></select>
         <input id="iv-date" class="input" type="date" required>
-        <input id="iv-slot" class="input" placeholder="Heure (ex. 09:00)">
-        <input id="iv-type" class="input" placeholder="Type d'intervention *" required>
-        <input id="iv-equip" class="input" placeholder="Matériel">
-        <input id="iv-loc" class="input" placeholder="Lieu">
+        <select id="iv-slot" class="input"></select>
+        <select id="iv-type" class="input" required>
+          <option value="">Type d'intervention *</option>
+          <option>Conseil technique automobile</option>
+          <option>Installation valise Autel</option>
+          <option>Mise en service station ATF</option>
+          <option>Conseil, installation &amp; calibration ADAS</option>
+          <option>Mise en service à distance</option>
+          <option value="__autre">Autre…</option>
+        </select>
+        <input id="iv-type-autre" class="input" placeholder="Précisez le type *" hidden>
+        <select id="iv-equip" class="input"><option value="">Matériel (aucun)</option></select>
+        <input id="iv-equip-autre" class="input" placeholder="Précisez le matériel" hidden>
+        <input id="iv-loc" class="input" placeholder="Lieu (auto : adresse du client)">
         <input id="iv-notes" class="input" placeholder="Notes">
         <button type="submit" class="btn-primary" style="padding:13px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;">+ Planifier</button>
       </form>
@@ -151,6 +171,20 @@
       </form>
       <div class="panel-card" style="overflow:hidden;">
         <div id="ag-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
+      </div>
+    </section>
+
+    <!-- Matériel -->
+    <section id="tab-materiel" hidden>
+      <p style="margin:0 0 16px;color:#9aa6ba;font-size:14px;">Votre parc de valises, bancs et stations. Suivez où se trouve chaque équipement : disponible, prêté ou loué à un client, en intervention. Le matériel disponible est proposé dans le formulaire de planification.</p>
+      <form id="eq-form" class="panel-card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;padding:22px;margin-bottom:18px;">
+        <input id="eq-name" class="input" placeholder="Nom du matériel * (ex. MaxiSys MS909)" required>
+        <input id="eq-ref" class="input" placeholder="N° de série / référence">
+        <input id="eq-notes" class="input" placeholder="Notes (état, accessoires…)">
+        <button type="submit" class="btn-primary" style="padding:13px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;">+ Ajouter</button>
+      </form>
+      <div class="panel-card" style="overflow:hidden;">
+        <div id="eq-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
       </div>
     </section>
 

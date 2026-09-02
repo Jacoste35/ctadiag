@@ -49,11 +49,21 @@ Deno.serve(async (req) => {
     const address = String(body.address ?? "").trim().slice(0, 400);
     const clientType = body.client_type === "distributeur" ? "distributeur" : "direct";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "E-mail invalide" }, 400);
-    if (password.length < 6) return json({ error: "Mot de passe : 6 caractères minimum" }, 400);
+
+    // Mot de passe par défaut : le nom du garage (simplifié), à changer à la première connexion
+    let effectivePassword = password;
+    if (!effectivePassword) {
+      effectivePassword = (companyName || email.split("@")[0])
+        .toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]/g, "");
+      while (effectivePassword.length < 6) effectivePassword += "0";
+    }
+    if (effectivePassword.length < 6) return json({ error: "Mot de passe : 6 caractères minimum" }, 400);
 
     const { data, error } = await admin.auth.admin.createUser({
       email,
-      password,
+      password: effectivePassword,
       email_confirm: true,
       user_metadata: { company_name: companyName },
     });
@@ -66,9 +76,10 @@ Deno.serve(async (req) => {
       phone: phone || null,
       address: address || null,
       client_type: clientType,
+      must_change_password: true,
     }).eq("id", data.user.id);
 
-    return json({ ok: true, id: data.user.id });
+    return json({ ok: true, id: data.user.id, password: effectivePassword });
   }
 
   if (action === "set_password") {
@@ -78,6 +89,8 @@ Deno.serve(async (req) => {
     if (password.length < 6) return json({ error: "Mot de passe : 6 caractères minimum" }, 400);
     const { error } = await admin.auth.admin.updateUserById(userId, { password });
     if (error) return json({ error: error.message }, 400);
+    // Mot de passe provisoire : l'utilisateur devra le changer à sa prochaine connexion
+    await admin.from("cta_partners").update({ must_change_password: true }).eq("id", userId);
     return json({ ok: true });
   }
 

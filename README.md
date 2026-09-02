@@ -40,8 +40,19 @@ Les deux tarifs de chaque prestation se gèrent dans le back-office, onglet **Ta
 
 - **Demandes de devis** : chaque envoi du formulaire du site arrive ici (coordonnées,
   prestations cochées, créneau de RDV souhaité, message). Marquer traité / supprimer.
-- **Clients** : créer un compte (e-mail + mot de passe provisoire + type), modifier
-  société/contact/téléphone/type, réinitialiser un mot de passe, supprimer un compte.
+- **Clients** : créer un compte (e-mail + type ; mot de passe par défaut = nom du
+  garage, à changer obligatoirement à la première connexion), modifier
+  société/contact/téléphone/adresse/type, réinitialiser un mot de passe (le client
+  peut aussi le faire seul via « Mot de passe oublié ? » sur la page de connexion,
+  qui envoie un mot de passe provisoire par e-mail), supprimer un compte.
+- **Matériel** : inventaire des valises, bancs et stations avec suivi des prêts et
+  locations (statut, chez quel client, depuis quand). Le matériel alimente le menu
+  du formulaire de planification.
+- **Planning** : la page d'accueil du back-office affiche « Votre journée » (fiches
+  clients avec appel et itinéraire en un appui, notes, statut rapide) puis « La
+  semaine à venir » (7 jours, avec notes). Le formulaire de planification propose
+  des menus (catégories du site, créneaux 8 h-18 h, matériel de l'inventaire) et
+  pré-remplit le lieu avec l'adresse de la fiche client.
 - **Interventions** : planifier une intervention pour un client (date, heure, matériel,
   lieu) ; le client la voit immédiatement dans son espace. Statuts : planifiée → en
   cours → terminée / annulée.

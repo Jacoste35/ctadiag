@@ -162,14 +162,14 @@
   tabs.forEach(function (t) {
     t.addEventListener("click", function () {
       tabs.forEach(function (x) { x.classList.toggle("active", x === t); });
-      ["demandes", "clients", "interventions", "documents", "grille", "tickets", "agenda"].forEach(function (name) {
+      ["demandes", "clients", "interventions", "documents", "grille", "materiel", "tickets", "agenda"].forEach(function (name) {
         document.getElementById("tab-" + name).hidden = name !== t.dataset.tab;
       });
     });
   });
 
   /* ---------- Données ---------- */
-  var clients = [], quotes = [], interventions = [], documents = [], grid = [], tickets = [], blockedDates = [];
+  var clients = [], quotes = [], interventions = [], documents = [], grid = [], tickets = [], blockedDates = [], equipment = [];
   var currentTicket = null;
 
   function clientName(id) {
@@ -229,6 +229,69 @@
     });
   }
 
+  /* ---------- Semaine à venir ---------- */
+  function renderWeek() {
+    var host = document.getElementById("week-list");
+    var today = isoToday();
+    var rows = interventions
+      .filter(function (r) { return r.date && r.date > today && r.status !== "annulee"; })
+      .sort(function (a, b) {
+        return (a.date + (a.time_slot || "99")) < (b.date + (b.time_slot || "99")) ? -1 : 1;
+      });
+    var horizon = new Date();
+    horizon.setDate(horizon.getDate() + 7);
+    var maxIso = horizon.getFullYear() + "-" + String(horizon.getMonth() + 1).padStart(2, "0") + "-" + String(horizon.getDate()).padStart(2, "0");
+    rows = rows.filter(function (r) { return r.date <= maxIso; });
+    if (!rows.length) {
+      host.innerHTML = '<p style="margin:0;color:#8b98ae;font-size:14px;">Aucune intervention planifiée sur les 7 prochains jours.</p>';
+      return;
+    }
+    var byDay = {};
+    rows.forEach(function (r) { (byDay[r.date] = byDay[r.date] || []).push(r); });
+    host.innerHTML = Object.keys(byDay).sort().map(function (day) {
+      var label = new Date(day + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+      return '<div style="margin-bottom:14px;">' +
+        '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;letter-spacing:.1em;color:#7fadff;text-transform:capitalize;margin-bottom:8px;">' + esc(label) + "</div>" +
+        byDay[day].map(function (r) {
+          var c = clients.find(function (x) { return x.id === r.partner_id; }) || {};
+          var addr = r.location || c.address || "";
+          return '<div style="display:flex;gap:12px;align-items:flex-start;padding:10px 14px;margin-bottom:6px;border-radius:12px;background:rgba(13,17,25,.7);border:1px solid rgba(120,150,200,.14);flex-wrap:wrap;">' +
+            '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:13.5px;font-weight:700;color:#c9d4e6;min-width:52px;">' + esc(r.time_slot || "Journée") + "</span>" +
+            '<div style="flex:1;min-width:200px;">' +
+            '<div style="font-weight:700;font-size:13.5px;">' + esc(r.type) + ' <span style="font-weight:600;color:#7fadff;">· ' + esc(c.company_name || "?") + "</span></div>" +
+            '<div style="margin-top:2px;font-size:12px;color:#8b98ae;">' +
+            [c.phone ? "📞 " + esc(c.phone) : "", addr ? "📍 " + esc(addr) : ""].filter(Boolean).join(" &nbsp; ") + "</div>" +
+            (r.notes ? '<div style="margin-top:3px;font-size:12px;color:#9fb6d8;">📝 ' + esc(r.notes) + "</div>" : "") +
+            "</div>" + badge(r.status) + "</div>";
+        }).join("") + "</div>";
+    }).join("");
+  }
+
+  /* ---------- Menus du formulaire de planification ---------- */
+  function renderIntervFormOptions() {
+    var slotSel = document.getElementById("iv-slot");
+    if (!slotSel.options.length) {
+      var opts = '<option value="">Heure (journée)</option>';
+      for (var h = 8; h <= 18; h++) {
+        ["00", "30"].forEach(function (m) {
+          if (h === 18 && m === "30") return;
+          var t = String(h).padStart(2, "0") + ":" + m;
+          opts += '<option value="' + t + '">' + t + "</option>";
+        });
+      }
+      slotSel.innerHTML = opts;
+    }
+    var eqSel = document.getElementById("iv-equip");
+    var current = eqSel.value;
+    eqSel.innerHTML = '<option value="">Matériel (aucun)</option>' +
+      equipment.map(function (e) {
+        var label = e.name + (e.ref ? " · " + e.ref : "");
+        return '<option value="' + esc(label) + '">' + esc(label) + (e.status !== "disponible" ? " (" + (EQ_STATUS[e.status] || [e.status])[0].toLowerCase() + ")" : "") + "</option>";
+      }).join("") +
+      '<option value="__autre">Autre…</option>';
+    if (current) eqSel.value = current;
+  }
+
   function refreshStats() {
     document.getElementById("stat-quotes").textContent = quotes.filter(function (q) { return q.status === "new"; }).length;
     document.getElementById("stat-tickets").textContent = tickets.filter(function (t) { return t.status === "ouvert" || t.status === "en_cours"; }).length;
@@ -244,15 +307,18 @@
       api("cta_documents?select=*&order=issued_on.desc"),
       api("cta_price_grid?select=*&order=sort.asc"),
       api("cta_tickets?select=*,cta_ticket_messages(*)&order=updated_at.desc"),
-      api("blocked_dates?select=*&order=day.asc")
+      api("blocked_dates?select=*&order=day.asc"),
+      api("cta_equipment?select=*&order=name.asc")
     ]).then(function (res) {
       clients = res[0]; quotes = res[1]; interventions = res[2];
       documents = res[3]; grid = res[4]; tickets = res[5]; blockedDates = res[6];
+      equipment = res[7];
       if (!currentTicket && tickets.length) currentTicket = tickets[0].id;
-      refreshStats(); renderToday();
+      refreshStats(); renderToday(); renderWeek();
       renderQuotes(); renderClients(); renderClientSelects();
       renderInterventions(); renderDocuments(); renderGrid();
       renderTicketList(); renderThread(); renderBlocked();
+      renderEquipment(); renderIntervFormOptions();
     }).catch(function () {
       showError("Chargement impossible : vérifiez votre connexion ou reconnectez-vous.");
     });
@@ -396,9 +462,13 @@
       phone: document.getElementById("c-phone").value.trim(),
       address: document.getElementById("c-address").value.trim(),
       client_type: document.getElementById("c-type").value
-    }).then(function () {
+    }).then(function (res) {
       clientForm.reset();
       clientForm.hidden = true;
+      if (res && res.password) {
+        window.alert("Compte créé ✓\n\nMot de passe provisoire : " + res.password +
+          "\n\nCommuniquez-le au client : il devra le changer à sa première connexion.");
+      }
       loadAll();
     }).catch(function (e) { showError("Création du compte : " + e.message); });
   });
@@ -426,7 +496,7 @@
         api("cta_interventions?id=eq." + id, { method: "PATCH", body: { status: sel.value } })
           .then(function () {
             interventions.find(function (x) { return x.id === id; }).status = sel.value;
-            refreshStats(); renderToday();
+            refreshStats(); renderToday(); renderWeek();
           }).catch(function () { showError("Mise à jour impossible."); });
       });
     });
@@ -436,19 +506,41 @@
         api("cta_interventions?id=eq." + b.dataset.ivDel, { method: "DELETE" })
           .then(function () {
             interventions = interventions.filter(function (x) { return x.id !== b.dataset.ivDel; });
-            refreshStats(); renderToday(); renderInterventions();
+            refreshStats(); renderToday(); renderWeek(); renderInterventions();
           }).catch(function () { showError("Suppression impossible."); });
       });
     });
   }
+  // Type / matériel : « Autre… » fait apparaître un champ libre
+  document.getElementById("iv-type").addEventListener("change", function () {
+    document.getElementById("iv-type-autre").hidden = this.value !== "__autre";
+  });
+  document.getElementById("iv-equip").addEventListener("change", function () {
+    document.getElementById("iv-equip-autre").hidden = this.value !== "__autre";
+  });
+  // Lieu pré-rempli avec l'adresse de la fiche client (modifiable)
+  document.getElementById("iv-client").addEventListener("change", function () {
+    var c = clients.find(function (x) { return x.id === document.getElementById("iv-client").value; });
+    var loc = document.getElementById("iv-loc");
+    if (c && c.address && (!loc.value.trim() || loc.dataset.auto === "1")) {
+      loc.value = c.address;
+      loc.dataset.auto = "1";
+    }
+  });
+  document.getElementById("iv-loc").addEventListener("input", function () { this.dataset.auto = "0"; });
+
   document.getElementById("interv-form").addEventListener("submit", function (ev) {
     ev.preventDefault();
+    var typeVal = document.getElementById("iv-type").value;
+    if (typeVal === "__autre") typeVal = document.getElementById("iv-type-autre").value.trim();
+    var equipVal = document.getElementById("iv-equip").value;
+    if (equipVal === "__autre") equipVal = document.getElementById("iv-equip-autre").value.trim();
     var body = {
       partner_id: document.getElementById("iv-client").value,
       date: document.getElementById("iv-date").value,
-      time_slot: document.getElementById("iv-slot").value.trim() || null,
-      type: document.getElementById("iv-type").value.trim(),
-      equipment: document.getElementById("iv-equip").value.trim() || null,
+      time_slot: document.getElementById("iv-slot").value || null,
+      type: typeVal,
+      equipment: equipVal || null,
       location: document.getElementById("iv-loc").value.trim() || null,
       notes: document.getElementById("iv-notes").value.trim() || null
     };
@@ -458,7 +550,13 @@
         ev.target.reset();
         return api("cta_interventions?select=*&order=date.desc");
       })
-      .then(function (rows) { interventions = rows; refreshStats(); renderToday(); renderInterventions(); })
+      .then(function (rows) {
+        interventions = rows;
+        document.getElementById("iv-type-autre").hidden = true;
+        document.getElementById("iv-equip-autre").hidden = true;
+        var loc = document.getElementById("iv-loc"); loc.dataset.auto = "0";
+        refreshStats(); renderToday(); renderWeek(); renderInterventions();
+      })
       .catch(function () { showError("Création impossible."); });
   });
 
@@ -660,6 +758,90 @@
         return reloadTickets();
       })
       .catch(function () { showError("Envoi impossible."); });
+  });
+
+  /* ---------- Matériel (inventaire, prêts et locations) ---------- */
+  var EQ_STATUS = {
+    disponible: ["Disponible", "badge-green"],
+    prete: ["Prêté", "badge-amber"],
+    louee: ["Loué", "badge-blue"],
+    en_intervention: ["En intervention", "badge-amber"],
+    indisponible: ["Indisponible", "badge-grey"]
+  };
+  function renderEquipment() {
+    var host = document.getElementById("eq-list");
+    if (!equipment.length) {
+      host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Aucun matériel enregistré. Ajoutez vos valises, bancs et stations ci-dessus pour suivre leurs prêts et locations.</p>';
+      return;
+    }
+    host.innerHTML = equipment.map(function (e) {
+      var st = EQ_STATUS[e.status] || [e.status, "badge-grey"];
+      var holderOpts = '<option value="">Chez CTA / personne</option>' +
+        clients.filter(function (c) { return c.role !== "admin"; }).map(function (c) {
+          return '<option value="' + c.id + '"' + (e.holder_partner_id === c.id ? " selected" : "") + ">" + esc(c.company_name || c.email) + "</option>";
+        }).join("");
+      return '<div class="list-row" data-eq-row="' + e.id + '" style="align-items:center;">' +
+        '<div style="min-width:170px;">' +
+        '<div style="font-weight:800;font-size:14.5px;">' + esc(e.name) + "</div>" +
+        '<div style="margin-top:3px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
+        '<span class="badge ' + st[1] + '">' + esc(st[0]) + "</span>" +
+        (e.ref ? '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11.5px;color:#5f6d84;">' + esc(e.ref) + "</span>" : "") +
+        (e.since ? '<span style="font-size:11.5px;color:#5f6d84;">depuis le ' + esc(fmtDate(e.since)) + "</span>" : "") +
+        "</div></div>" +
+        '<select class="input" data-f="status" style="padding:9px 12px;width:auto;font-size:13px;">' +
+        Object.keys(EQ_STATUS).map(function (k) {
+          return '<option value="' + k + '"' + (e.status === k ? " selected" : "") + ">" + EQ_STATUS[k][0] + "</option>";
+        }).join("") + "</select>" +
+        '<select class="input" data-f="holder_partner_id" style="padding:9px 12px;width:auto;max-width:180px;font-size:13px;">' + holderOpts + "</select>" +
+        '<input class="input" data-f="holder_note" value="' + esc(e.holder_note || "") + '" placeholder="Ou : autre détenteur / précision" style="flex:1;min-width:140px;padding:9px 12px;font-size:13px;">' +
+        '<input class="input" data-f="notes" value="' + esc(e.notes || "") + '" placeholder="Notes" style="flex:1;min-width:120px;padding:9px 12px;font-size:13px;">' +
+        '<div style="display:flex;gap:8px;">' +
+        '<button ' + GHOST_BTN + ' data-eq-save="' + e.id + '">Enregistrer</button>' +
+        '<button ' + DANGER_BTN + ' data-eq-del="' + e.id + '">✕</button>' +
+        "</div></div>";
+    }).join("");
+    host.querySelectorAll("[data-eq-save]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var row = host.querySelector('[data-eq-row="' + b.dataset.eqSave + '"]');
+        var e = equipment.find(function (x) { return x.id === b.dataset.eqSave; });
+        var body = {};
+        row.querySelectorAll("[data-f]").forEach(function (inp) { body[inp.dataset.f] = inp.value || null; });
+        var out = body.status !== "disponible" && body.status !== "indisponible";
+        body.since = out ? (e.since && e.status === body.status ? e.since : isoToday()) : null;
+        if (!out) { body.holder_partner_id = null; body.holder_note = null; }
+        api("cta_equipment?id=eq." + b.dataset.eqSave, { method: "PATCH", body: body })
+          .then(function () {
+            Object.assign(e, body);
+            renderEquipment(); renderIntervFormOptions();
+          }).catch(function () { showError("Enregistrement impossible."); });
+      });
+    });
+    host.querySelectorAll("[data-eq-del]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        if (!window.confirm("Supprimer ce matériel de l'inventaire ?")) return;
+        api("cta_equipment?id=eq." + b.dataset.eqDel, { method: "DELETE" })
+          .then(function () {
+            equipment = equipment.filter(function (x) { return x.id !== b.dataset.eqDel; });
+            renderEquipment(); renderIntervFormOptions();
+          }).catch(function () { showError("Suppression impossible."); });
+      });
+    });
+  }
+  document.getElementById("eq-form").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var body = {
+      name: document.getElementById("eq-name").value.trim(),
+      ref: document.getElementById("eq-ref").value.trim() || null,
+      notes: document.getElementById("eq-notes").value.trim() || null
+    };
+    if (!body.name) return;
+    api("cta_equipment", { method: "POST", body: body })
+      .then(function () {
+        ev.target.reset();
+        return api("cta_equipment?select=*&order=name.asc");
+      })
+      .then(function (rows) { equipment = rows; renderEquipment(); renderIntervFormOptions(); })
+      .catch(function () { showError("Ajout impossible."); });
   });
 
   /* ---------- Synchronisation agenda (flux iCalendar) ---------- */
