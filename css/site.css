@@ -192,6 +192,11 @@ input::placeholder, textarea::placeholder { color: #5f6d84; }
   .grid-add-form button { grid-column: 1 / -1; }
   .blocked-add-form { grid-template-columns: 1fr !important; }
 
+  /* Formulaire de devis : une colonne, padding resserré */
+  .form-2col { grid-template-columns: 1fr !important; }
+  .quote-card { padding: 22px 18px !important; }
+  .quote-card .input { min-width: 0; }
+
   /* En-têtes d'app : plus compacts */
   header .btn-ghost { padding: 8px 12px !important; font-size: 12.5px !important; white-space: nowrap; }
   .app-label { display: none !important; }

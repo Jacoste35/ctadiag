@@ -94,6 +94,26 @@ Vercel/Netlify (aucun build).
 **Configuration** (`js/config.js`) : e-mail de contact, URL boutique
 (`https://leqgmotorsport.fr/`), jours bloqués de secours, clés publiques Supabase.
 
+### Rappels automatiques de rendez-vous
+
+Chaque matin (vers 7 h, tâche planifiée pg_cron → fonction Edge `send-reminders`),
+un e-mail de rappel est envoyé au client pour chaque intervention **planifiée** :
+
+| Échéance | Contenu |
+|---|---|
+| J-7 | Récapitulatif de l'intervention |
+| J-3 (72 h) | Rappel + récapitulatif |
+| J-1 (24 h) | **Dernier délai d'annulation sans frais** |
+| Jour J | Annonce du passage du technicien (heure, lieu, accès matériel) |
+
+Chaque e-mail rappelle comment annuler (réponse à l'e-mail, téléphone, ticket) et
+la politique : *tout rendez-vous non décommandé au minimum 24 h à l'avance — sauf
+urgence ou accord direct avec le prestataire — est considéré comme réalisé et
+facturé*. Cette clause figure aussi dans les CGV et dans l'espace client.
+Les envois sont journalisés dans `cta_reminders` (aucun doublon). ⚠️ Les rappels
+partent uniquement si le secret `RESEND_API_KEY` est configuré (voir ci-dessous) ;
+une intervention passée en statut « annulée » ne reçoit plus de rappel.
+
 ### Notification e-mail des devis (optionnel, recommandé)
 
 Compte [Resend](https://resend.com) gratuit, puis dans le dashboard Supabase
