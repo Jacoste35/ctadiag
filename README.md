@@ -48,6 +48,16 @@ Les deux tarifs de chaque prestation se gèrent dans le back-office, onglet **Ta
 - **Matériel** : inventaire des valises, bancs et stations avec suivi des prêts et
   locations (statut, chez quel client, depuis quand). Le matériel alimente le menu
   du formulaire de planification.
+- **Distributeurs** : depuis leur espace, ils créent les fiches de leurs clients
+  finaux (transmises automatiquement dans l'onglet Clients du back-office, avec le
+  badge « via [distributeur] » et l'historique des interventions de chaque fiche)
+  et envoient des demandes d'intervention (type, client final, date souhaitée) qui
+  arrivent en tête de l'onglet Interventions : « Planifier » pré-remplit le
+  formulaire et confirme la demande, « Refuser » la clôt ; le distributeur suit le
+  statut dans son espace.
+- **Catégories** : chaque intervention est catégorisée (Valise Autel, Station ATF,
+  ADAS, Conseil, À distance, Autre) avec des filtres dans l'onglet Interventions
+  et des étiquettes partout (listes, espaces clients).
 - **Planning** : la page d'accueil du back-office affiche « Votre journée » (fiches
   clients avec appel et itinéraire en un appui, notes, statut rapide) puis « La
   semaine à venir » (7 jours, avec notes). Le formulaire de planification propose

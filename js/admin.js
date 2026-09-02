@@ -111,6 +111,14 @@
   function eur(n) {
     return n == null ? "" : Number(n).toLocaleString("fr-FR", { minimumFractionDigits: Number(n) % 1 ? 2 : 0 }) + " €";
   }
+  var CATS = {
+    conseil: "💬 Conseil", valise: "🧰 Valise Autel", atf: "🛢️ Station ATF",
+    adas: "🎯 ADAS", distance: "📞 À distance", autre: "🔧 Autre"
+  };
+  function catChip(c) {
+    return '<span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;border:1px solid rgba(120,150,200,.28);font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#9fb6d8;white-space:nowrap;">' +
+      esc(CATS[c] || CATS.autre) + "</span>";
+  }
   var STATUS = {
     planifiee: ["Planifiée", "badge-blue"], en_cours: ["En cours", "badge-amber"],
     terminee: ["Terminée", "badge-green"], annulee: ["Annulée", "badge-grey"],
@@ -171,7 +179,9 @@
   });
 
   /* ---------- Données ---------- */
-  var clients = [], quotes = [], interventions = [], documents = [], grid = [], tickets = [], blockedDates = [], equipment = [];
+  var clients = [], quotes = [], interventions = [], documents = [], grid = [], tickets = [], blockedDates = [], equipment = [], endClients = [], iReqs = [];
+  var catFilter = "";
+  var pendingRequestId = null;
   var currentTicket = null;
   var showArchived = false;
 
@@ -211,6 +221,7 @@
         (r.equipment ? '<div style="margin-top:3px;font-size:12.5px;color:#93a0b5;">' + esc(r.equipment) + "</div>" : "") + "</div>" +
         '<div style="padding:12px 14px;border-radius:12px;background:rgba(10,13,19,.6);border:1px solid rgba(120,150,200,.15);display:flex;flex-direction:column;gap:5px;">' +
         '<div style="font-weight:700;font-size:14px;">' + esc(c.company_name || "Client inconnu") + (c.contact_name ? ' <span style="font-weight:600;color:#8b98ae;">· ' + esc(c.contact_name) + "</span>" : "") + "</div>" +
+        (r.cta_end_clients ? '<div style="font-size:12.5px;color:#7fadff;">🏁 Client final : ' + esc(r.cta_end_clients.company_name) + "</div>" : "") +
         (c.phone ? '<div style="font-size:13px;color:#9aa6ba;">📞 ' + esc(c.phone) + "</div>" : "") +
         (addr ? '<div style="font-size:13px;color:#9aa6ba;line-height:1.45;">📍 ' + esc(addr) + "</div>" : "") +
         (r.notes ? '<div style="font-size:12.5px;color:#5f6d84;">📝 ' + esc(r.notes) + "</div>" : "") + "</div>" +
@@ -261,7 +272,7 @@
           return '<div style="display:flex;gap:12px;align-items:flex-start;padding:10px 14px;margin-bottom:6px;border-radius:12px;background:rgba(13,17,25,.7);border:1px solid rgba(120,150,200,.14);flex-wrap:wrap;">' +
             '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:13.5px;font-weight:700;color:#c9d4e6;min-width:52px;">' + esc(r.time_slot || "Journée") + "</span>" +
             '<div style="flex:1;min-width:200px;">' +
-            '<div style="font-weight:700;font-size:13.5px;">' + esc(r.type) + ' <span style="font-weight:600;color:#7fadff;">· ' + esc(c.company_name || "?") + "</span></div>" +
+            '<div style="font-weight:700;font-size:13.5px;">' + esc(r.type) + ' <span style="font-weight:600;color:#7fadff;">· ' + esc(c.company_name || "?") + (r.cta_end_clients ? " → 🏁 " + esc(r.cta_end_clients.company_name) : "") + "</span></div>" +
             '<div style="margin-top:2px;font-size:12px;color:#8b98ae;">' +
             [c.phone ? "📞 " + esc(c.phone) : "", addr ? "📍 " + esc(addr) : ""].filter(Boolean).join(" &nbsp; ") + "</div>" +
             (r.notes ? '<div style="margin-top:3px;font-size:12px;color:#9fb6d8;">📝 ' + esc(r.notes) + "</div>" : "") +
@@ -296,7 +307,9 @@
   }
 
   function refreshStats() {
-    document.getElementById("stat-quotes").textContent = quotes.filter(function (q) { return q.status === "new"; }).length;
+    document.getElementById("stat-quotes").textContent =
+      quotes.filter(function (q) { return q.status === "new"; }).length +
+      iReqs.filter(function (r) { return r.status === "nouvelle"; }).length;
     document.getElementById("stat-tickets").textContent = tickets.filter(function (t) { return t.status === "ouvert" || t.status === "en_cours"; }).length;
     document.getElementById("stat-interv").textContent = interventions.filter(function (i) { return i.status === "planifiee" || i.status === "en_cours"; }).length;
     document.getElementById("stat-invoices").textContent = documents.filter(function (d) { return d.kind === "facture" && d.status === "a_regler"; }).length;
@@ -306,16 +319,18 @@
     Promise.all([
       api("cta_partners?select=*&order=created_at.asc"),
       api("quote_requests?select=*&order=created_at.desc"),
-      api("cta_interventions?select=*&order=date.desc"),
+      api("cta_interventions?select=*,cta_end_clients(company_name)&order=date.desc"),
       api("cta_documents?select=*&order=issued_on.desc"),
       api("cta_price_grid?select=*&order=sort.asc"),
       api("cta_tickets?select=*,cta_ticket_messages(*)&order=updated_at.desc"),
       api("blocked_dates?select=*&order=day.asc"),
-      api("cta_equipment?select=*&order=name.asc")
+      api("cta_equipment?select=*&order=name.asc"),
+      api("cta_end_clients?select=*&order=company_name.asc"),
+      api("cta_intervention_requests?select=*,cta_end_clients(company_name,address)&order=created_at.desc")
     ]).then(function (res) {
       clients = res[0]; quotes = res[1]; interventions = res[2];
       documents = res[3]; grid = res[4]; tickets = res[5]; blockedDates = res[6];
-      equipment = res[7];
+      equipment = res[7]; endClients = res[8]; iReqs = res[9];
       if (!currentTicket) {
         var activePool = tickets.filter(function (t) { return !t.archived; });
         if (activePool.length) currentTicket = activePool[0].id;
@@ -325,6 +340,7 @@
       renderInterventions(); renderDocuments(); renderGrid();
       renderTicketList(); renderThread(); renderBlocked();
       renderEquipment(); renderIntervFormOptions();
+      renderIReqs(); renderCatFilter(); renderEndClientsAdmin();
     }).catch(function () {
       showError("Chargement impossible : vérifiez votre connexion ou reconnectez-vous.");
     });
@@ -480,17 +496,45 @@
   });
 
   /* ---------- Interventions ---------- */
+  function renderCatFilter() {
+    var host = document.getElementById("cat-filter");
+    if (!host) return;
+    var counts = {};
+    interventions.forEach(function (r) { counts[r.category || "autre"] = (counts[r.category || "autre"] || 0) + 1; });
+    var chips = [["", "Toutes (" + interventions.length + ")"]];
+    Object.keys(CATS).forEach(function (k) {
+      if (counts[k]) chips.push([k, CATS[k] + " (" + counts[k] + ")"]);
+    });
+    host.innerHTML = chips.map(function (c) {
+      var active = catFilter === c[0];
+      return '<button type="button" data-cat="' + c[0] + '" style="padding:7px 14px;border-radius:999px;font-family:\'IBM Plex Mono\',monospace;font-size:11.5px;cursor:pointer;white-space:nowrap;' +
+        (active
+          ? "border:1px solid transparent;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;"
+          : "border:1px solid rgba(120,150,200,.28);background:transparent;color:#9fb6d8;") + '">' +
+        esc(c[1]) + "</button>";
+    }).join("");
+    host.querySelectorAll("[data-cat]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        catFilter = b.dataset.cat;
+        renderCatFilter(); renderInterventions();
+      });
+    });
+  }
+
   function renderInterventions() {
     var host = document.getElementById("ai-list");
-    if (!interventions.length) {
-      host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Aucune intervention.</p>';
+    var rows = catFilter ? interventions.filter(function (r) { return (r.category || "autre") === catFilter; }) : interventions;
+    if (!rows.length) {
+      host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">' +
+        (catFilter ? "Aucune intervention dans cette catégorie." : "Aucune intervention.") + "</p>";
       return;
     }
-    host.innerHTML = interventions.map(function (r) {
+    host.innerHTML = rows.map(function (r) {
+      var endClient = r.cta_end_clients && r.cta_end_clients.company_name;
       return '<div class="list-row" data-iv-row="' + r.id + '">' +
         '<div style="min-width:120px;font-family:\'IBM Plex Mono\',monospace;font-size:13px;color:#c9d4e6;">' + esc(fmtDate(r.date)) + (r.time_slot ? " · " + esc(r.time_slot) : "") + "</div>" +
         '<div style="flex:1;min-width:220px;">' +
-        '<div style="font-weight:800;font-size:14.5px;">' + esc(r.type) + ' <span style="font-weight:600;color:#7fadff;">· ' + esc(clientName(r.partner_id)) + "</span></div>" +
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span style="font-weight:800;font-size:14.5px;">' + esc(r.type) + '</span>' + catChip(r.category) + ' <span style="font-weight:600;font-size:13.5px;color:#7fadff;">· ' + esc(clientName(r.partner_id)) + (endClient ? " → 🏁 " + esc(endClient) : "") + "</span></div>" +
         '<div style="margin-top:3px;font-size:13px;color:#93a0b5;">' + esc(r.equipment || "") + (r.location ? " · " + esc(r.location) : "") + (r.notes ? " · " + esc(r.notes) : "") + "</div></div>" +
         statusSelect(r.status, ["planifiee", "en_cours", "terminee", "annulee"], "iv-status") +
         '<button ' + DANGER_BTN + ' data-iv-del="' + r.id + '">✕</button>' +
@@ -524,8 +568,17 @@
   document.getElementById("iv-equip").addEventListener("change", function () {
     document.getElementById("iv-equip-autre").hidden = this.value !== "__autre";
   });
-  // Lieu pré-rempli avec l'adresse de la fiche client (modifiable)
+  // Client sélectionné : options de client final (fiches du distributeur) + lieu pré-rempli
+  function updateEndClientOptions() {
+    var partnerId = document.getElementById("iv-client").value;
+    var sel = document.getElementById("iv-endclient");
+    var ecs = endClients.filter(function (e) { return e.distributor_id === partnerId; });
+    sel.hidden = !ecs.length;
+    sel.innerHTML = '<option value="">Client final (optionnel)</option>' +
+      ecs.map(function (e) { return '<option value="' + e.id + '">🏁 ' + esc(e.company_name) + "</option>"; }).join("");
+  }
   document.getElementById("iv-client").addEventListener("change", function () {
+    updateEndClientOptions();
     var c = clients.find(function (x) { return x.id === document.getElementById("iv-client").value; });
     var loc = document.getElementById("iv-loc");
     if (c && c.address && (!loc.value.trim() || loc.dataset.auto === "1")) {
@@ -533,19 +586,36 @@
       loc.dataset.auto = "1";
     }
   });
+  document.getElementById("iv-endclient").addEventListener("change", function () {
+    var e = endClients.find(function (x) { return x.id === document.getElementById("iv-endclient").value; });
+    var loc = document.getElementById("iv-loc");
+    if (e && e.address && (!loc.value.trim() || loc.dataset.auto === "1")) {
+      loc.value = e.address;
+      loc.dataset.auto = "1";
+    }
+  });
   document.getElementById("iv-loc").addEventListener("input", function () { this.dataset.auto = "0"; });
 
   document.getElementById("interv-form").addEventListener("submit", function (ev) {
     ev.preventDefault();
-    var typeVal = document.getElementById("iv-type").value;
-    if (typeVal === "__autre") typeVal = document.getElementById("iv-type-autre").value.trim();
+    var typeSel = document.getElementById("iv-type");
+    var catVal = typeSel.value;
+    var typeVal;
+    if (catVal === "__autre") {
+      typeVal = document.getElementById("iv-type-autre").value.trim();
+      catVal = "autre";
+    } else {
+      typeVal = catVal ? typeSel.options[typeSel.selectedIndex].text : "";
+    }
     var equipVal = document.getElementById("iv-equip").value;
     if (equipVal === "__autre") equipVal = document.getElementById("iv-equip-autre").value.trim();
     var body = {
       partner_id: document.getElementById("iv-client").value,
+      end_client_id: document.getElementById("iv-endclient").value || null,
       date: document.getElementById("iv-date").value,
       time_slot: document.getElementById("iv-slot").value || null,
       type: typeVal,
+      category: catVal || "autre",
       equipment: equipVal || null,
       location: document.getElementById("iv-loc").value.trim() || null,
       notes: document.getElementById("iv-notes").value.trim() || null
@@ -554,17 +624,144 @@
     api("cta_interventions", { method: "POST", body: body })
       .then(function () {
         ev.target.reset();
-        return api("cta_interventions?select=*&order=date.desc");
+        return api("cta_interventions?select=*,cta_end_clients(company_name)&order=date.desc");
       })
       .then(function (rows) {
         interventions = rows;
         document.getElementById("iv-type-autre").hidden = true;
         document.getElementById("iv-equip-autre").hidden = true;
         var loc = document.getElementById("iv-loc"); loc.dataset.auto = "0";
-        refreshStats(); renderToday(); renderWeek(); renderInterventions();
+        updateEndClientOptions();
+        if (pendingRequestId) {
+          var reqId = pendingRequestId;
+          pendingRequestId = null;
+          api("cta_intervention_requests?id=eq." + reqId, { method: "PATCH", body: { status: "acceptee" } })
+            .then(function () {
+              var req = iReqs.find(function (x) { return x.id === reqId; });
+              if (req) req.status = "acceptee";
+              renderIReqs(); refreshStats();
+            }).catch(function () { /* la demande restera à traiter */ });
+        }
+        refreshStats(); renderToday(); renderWeek(); renderInterventions(); renderCatFilter(); renderEndClientsAdmin();
       })
       .catch(function () { showError("Création impossible."); });
   });
+
+  /* ---------- Demandes d'intervention des distributeurs ---------- */
+  function renderIReqs() {
+    var panel = document.getElementById("ireq-panel");
+    var pending = iReqs.filter(function (r) { return r.status === "nouvelle"; });
+    panel.hidden = !pending.length;
+    if (!pending.length) return;
+    document.getElementById("ireq-list").innerHTML = pending.map(function (r) {
+      return '<div class="list-row" style="align-items:flex-start;">' +
+        catChip(r.category) +
+        '<div style="flex:1;min-width:220px;">' +
+        '<div style="font-weight:800;font-size:14px;">' + esc(clientName(r.partner_id)) +
+        (r.cta_end_clients ? ' <span style="font-weight:600;color:#7fadff;">→ 🏁 ' + esc(r.cta_end_clients.company_name) + "</span>" : "") + "</div>" +
+        '<div style="margin-top:3px;font-size:12.5px;color:#93a0b5;">' +
+        [r.desired_date ? "📅 Souhaité : " + fmtDate(r.desired_date) + (r.desired_slot ? " à " + r.desired_slot : "") : "",
+         r.equipment ? "🧰 " + r.equipment : "",
+         r.location ? "📍 " + r.location : ""].filter(Boolean).map(esc).join(" · ") + "</div>" +
+        (r.message ? '<div style="margin-top:3px;font-size:12.5px;color:#8b98ae;">💬 ' + esc(r.message) + "</div>" : "") +
+        '<div style="margin-top:3px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#5f6d84;">Reçue le ' + esc(fmtDateTime(r.created_at)) + "</div></div>" +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+        '<button class="btn-primary" data-ireq-plan="' + r.id + '" style="padding:8px 16px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:12px;cursor:pointer;">Planifier →</button>' +
+        '<button ' + DANGER_BTN + ' data-ireq-refuse="' + r.id + '">Refuser</button>' +
+        "</div></div>";
+    }).join("");
+    document.getElementById("ireq-list").querySelectorAll("[data-ireq-plan]").forEach(function (b) {
+      b.addEventListener("click", function () { planFromRequest(b.dataset.ireqPlan); });
+    });
+    document.getElementById("ireq-list").querySelectorAll("[data-ireq-refuse]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        if (!window.confirm("Refuser cette demande d'intervention ? Le distributeur verra le refus dans son espace.")) return;
+        api("cta_intervention_requests?id=eq." + b.dataset.ireqRefuse, { method: "PATCH", body: { status: "refusee" } })
+          .then(function () {
+            iReqs.find(function (x) { return x.id === b.dataset.ireqRefuse; }).status = "refusee";
+            renderIReqs(); refreshStats();
+          }).catch(function () { showError("Refus impossible."); });
+      });
+    });
+  }
+  function planFromRequest(id) {
+    var r = iReqs.find(function (x) { return x.id === id; });
+    if (!r) return;
+    pendingRequestId = id;
+    document.getElementById("iv-client").value = r.partner_id;
+    updateEndClientOptions();
+    document.getElementById("iv-endclient").value = r.end_client_id || "";
+    document.getElementById("iv-date").value = r.desired_date || "";
+    document.getElementById("iv-slot").value = r.desired_slot || "";
+    var typeSel = document.getElementById("iv-type");
+    if (r.category && r.category !== "autre" && CATS[r.category]) {
+      typeSel.value = r.category;
+      document.getElementById("iv-type-autre").hidden = true;
+    } else {
+      typeSel.value = "__autre";
+      document.getElementById("iv-type-autre").hidden = false;
+      document.getElementById("iv-type-autre").value = "";
+    }
+    var equipSel = document.getElementById("iv-equip");
+    if (r.equipment) {
+      equipSel.value = "__autre";
+      document.getElementById("iv-equip-autre").hidden = false;
+      document.getElementById("iv-equip-autre").value = r.equipment;
+    } else {
+      equipSel.value = "";
+      document.getElementById("iv-equip-autre").hidden = true;
+    }
+    var fiche = r.end_client_id ? endClients.find(function (e) { return e.id === r.end_client_id; }) : null;
+    var partner = clients.find(function (c) { return c.id === r.partner_id; });
+    var loc = document.getElementById("iv-loc");
+    loc.value = r.location || (fiche && fiche.address) || (partner && partner.address) || "";
+    loc.dataset.auto = "0";
+    document.getElementById("iv-notes").value = r.message || "";
+    document.getElementById("interv-form").scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  /* ---------- Fiches clients finaux (créées par les distributeurs) ---------- */
+  var openHistory = null;
+  function renderEndClientsAdmin() {
+    var host = document.getElementById("ec-admin-list");
+    if (!host) return;
+    if (!endClients.length) {
+      host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Aucune fiche pour le moment : elles apparaîtront ici dès qu\'un distributeur créera un client final depuis son espace.</p>';
+      return;
+    }
+    host.innerHTML = endClients.map(function (e) {
+      var history = interventions.filter(function (i) { return i.end_client_id === e.id; });
+      var isOpen = openHistory === e.id;
+      return '<div class="list-row" style="align-items:flex-start;flex-direction:column;gap:8px;">' +
+        '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;">' +
+        '<span style="font-weight:800;font-size:14.5px;">🏁 ' + esc(e.company_name) + "</span>" +
+        '<span class="badge badge-green">via ' + esc(clientName(e.distributor_id)) + "</span>" +
+        '<span style="flex:1;"></span>' +
+        '<button ' + GHOST_BTN + ' data-ec-history="' + e.id + '">' + (isOpen ? "Masquer l\'historique" : "Historique (" + history.length + ")") + "</button>" +
+        "</div>" +
+        '<div style="font-size:12.5px;color:#93a0b5;">' +
+        [e.contact_name ? "👤 " + e.contact_name : "", e.phone ? "📞 " + e.phone : "", e.email ? "✉️ " + e.email : "", e.address ? "📍 " + e.address : ""].filter(Boolean).map(esc).join(" · ") +
+        (e.notes ? ' · 📝 ' + esc(e.notes) : "") + "</div>" +
+        (isOpen
+          ? '<div style="width:100%;padding:10px 14px;border-radius:12px;background:rgba(10,13,19,.6);border:1px solid rgba(120,150,200,.15);">' +
+            (history.length
+              ? history.map(function (i) {
+                  return '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 0;font-size:12.5px;color:#c9d4e6;">' +
+                    '<span style="font-family:\'IBM Plex Mono\',monospace;color:#8b98ae;min-width:96px;">' + esc(fmtDate(i.date)) + (i.time_slot ? " " + esc(i.time_slot) : "") + "</span>" +
+                    catChip(i.category) + '<span style="flex:1;">' + esc(i.type) + (i.equipment ? " · " + esc(i.equipment) : "") + "</span>" + badge(i.status) + "</div>";
+                }).join("")
+              : '<span style="font-size:12.5px;color:#5f6d84;">Aucune intervention enregistrée chez ce client.</span>') +
+            "</div>"
+          : "") +
+        "</div>";
+    }).join("");
+    host.querySelectorAll("[data-ec-history]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        openHistory = openHistory === b.dataset.ecHistory ? null : b.dataset.ecHistory;
+        renderEndClientsAdmin();
+      });
+    });
+  }
 
   /* ---------- Devis & factures ---------- */
   function renderDocuments() {
@@ -860,6 +1057,7 @@
           .then(function () {
             Object.assign(e, body);
             renderEquipment(); renderIntervFormOptions();
+      renderIReqs(); renderCatFilter(); renderEndClientsAdmin();
           }).catch(function () { showError("Enregistrement impossible."); });
       });
     });
@@ -870,6 +1068,7 @@
           .then(function () {
             equipment = equipment.filter(function (x) { return x.id !== b.dataset.eqDel; });
             renderEquipment(); renderIntervFormOptions();
+      renderIReqs(); renderCatFilter(); renderEndClientsAdmin();
           }).catch(function () { showError("Suppression impossible."); });
       });
     });

@@ -113,12 +113,21 @@
       <div class="panel-card" style="overflow:hidden;">
         <div id="clients-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
       </div>
+      <div class="panel-card" style="overflow:hidden;margin-top:22px;">
+        <div style="padding:14px 24px;background:rgba(47,123,255,.08);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8b98ae;">🏁 Clients finaux (fiches créées par vos distributeurs)</div>
+        <div id="ec-admin-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
+      </div>
     </section>
 
     <!-- Interventions -->
     <section id="tab-interventions" hidden>
+      <div id="ireq-panel" hidden class="panel-card" style="overflow:hidden;margin-bottom:18px;border-color:rgba(255,190,80,.35);">
+        <div style="padding:14px 24px;background:rgba(255,190,80,.08);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#ffbe50;">📥 Demandes d'intervention reçues</div>
+        <div id="ireq-list"></div>
+      </div>
       <form id="interv-form" class="panel-card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;padding:22px;margin-bottom:18px;">
         <select id="iv-client" class="input" required></select>
+        <select id="iv-endclient" class="input" hidden><option value="">Client final (optionnel)</option></select>
         <div style="display:flex;flex-direction:column;gap:5px;">
           <label for="iv-date" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#7fadff;text-transform:uppercase;">Date de l'intervention *</label>
           <input id="iv-date" class="input" type="date" required>
@@ -126,11 +135,11 @@
         <select id="iv-slot" class="input"></select>
         <select id="iv-type" class="input" required>
           <option value="">Type d'intervention *</option>
-          <option>Conseil technique automobile</option>
-          <option>Installation valise Autel</option>
-          <option>Mise en service station ATF</option>
-          <option>Conseil, installation &amp; calibration ADAS</option>
-          <option>Mise en service à distance</option>
+          <option value="conseil">Conseil technique automobile</option>
+          <option value="valise">Installation valise Autel</option>
+          <option value="atf">Mise en service station ATF</option>
+          <option value="adas">Conseil, installation &amp; calibration ADAS</option>
+          <option value="distance">Mise en service à distance</option>
           <option value="__autre">Autre…</option>
         </select>
         <input id="iv-type-autre" class="input" placeholder="Précisez le type *" hidden>
@@ -140,6 +149,7 @@
         <input id="iv-notes" class="input" placeholder="Notes">
         <button type="submit" class="btn-primary" style="padding:13px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;">+ Planifier</button>
       </form>
+      <div id="cat-filter" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;"></div>
       <div class="panel-card" style="overflow:hidden;">
         <div id="ai-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
       </div>

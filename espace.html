@@ -71,16 +71,22 @@
       <button class="tab active" data-tab="interventions">Interventions</button>
       <button class="tab" data-tab="documents">Devis &amp; factures</button>
       <button class="tab" data-tab="grille">Grille distributeur</button>
+      <button class="tab" data-tab="clients" id="tab-btn-clients" hidden>Mes clients</button>
       <button class="tab" data-tab="messagerie">Messagerie</button>
     </div>
 
     <!-- Interventions -->
     <section id="tab-interventions">
       <div class="panel-card" style="overflow:hidden;">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 24px;background:rgba(47,123,255,.08);">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 24px;background:rgba(47,123,255,.08);">
           <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8b98ae;">Suivi de vos interventions</span>
+          <button id="ireq-btn" hidden type="button" class="btn-primary" style="padding:9px 18px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:12.5px;cursor:pointer;box-shadow:0 4px 14px rgba(47,123,255,.35);">🛠️ Demander une intervention</button>
         </div>
         <div id="interv-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
+      </div>
+      <div id="myreq-wrap" hidden class="panel-card" style="overflow:hidden;margin-top:18px;">
+        <div style="padding:14px 24px;background:rgba(47,123,255,.08);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8b98ae;">Mes demandes d'intervention</div>
+        <div id="myreq-list"></div>
       </div>
       <p style="margin:14px 4px 0;font-size:12.5px;color:#5f6d84;line-height:1.6;">Besoin de déplacer une intervention ? Ouvrez un ticket dans la messagerie ou appelez-nous. Des rappels vous sont envoyés par e-mail une semaine, 72 h et 24 h avant chaque intervention, puis le jour J.<br><span style="color:#8b98ae;">⚠️ Tout rendez-vous non décommandé au minimum 24 h à l'avance (sauf urgence ou accord direct avec votre prestataire) est considéré comme réalisé et facturé.</span></p>
     </section>
@@ -107,6 +113,23 @@
         <div id="grid-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
       </div>
       <p id="grid-note" style="margin:14px 4px 0;font-size:12.5px;color:#5f6d84;">Tarifs HT, hors frais de déplacement. Grille personnelle et confidentielle ; devis groupé possible pour interventions multiples.</p>
+    </section>
+
+    <!-- Mes clients (distributeurs) -->
+    <section id="tab-clients" hidden>
+      <p style="margin:0 0 16px;color:#9aa6ba;font-size:14px;">Vos clients finaux : créez leurs fiches ici, elles sont transmises automatiquement à CTA. Vous suivez ensuite les interventions réalisées chez chacun.</p>
+      <form id="ec-form" class="panel-card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;padding:22px;margin-bottom:18px;">
+        <input id="ec-company" class="input" placeholder="Nom du garage / société *" required>
+        <input id="ec-contact" class="input" placeholder="Contact">
+        <input id="ec-phone" class="input" placeholder="Téléphone">
+        <input id="ec-email" class="input" type="email" placeholder="E-mail">
+        <input id="ec-address" class="input" placeholder="Adresse postale" style="grid-column:1 / -1;">
+        <input id="ec-notes" class="input" placeholder="Notes (matériel, contexte…)">
+        <button type="submit" class="btn-primary" style="padding:13px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;">+ Créer la fiche</button>
+      </form>
+      <div class="panel-card" style="overflow:hidden;">
+        <div id="ec-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
+      </div>
     </section>
 
     <!-- Messagerie / tickets -->
@@ -153,6 +176,40 @@
       </div>
     </section>
   </main>
+</div>
+
+<!-- Demande d'intervention (distributeurs) -->
+<div id="ireq-modal" hidden style="position:fixed;inset:0;z-index:98;background:rgba(4,6,10,.86);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;">
+  <div class="panel-card" style="position:relative;overflow:hidden;width:100%;max-width:460px;padding:28px;margin:auto;">
+    <div style="position:absolute;top:-1px;left:24px;right:35%;height:2px;background:linear-gradient(90deg,transparent,#2f7bff,transparent);"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">
+      <h2 style="margin:0;font-size:19px;font-weight:900;">🛠️ Demande d'intervention</h2>
+      <button id="ireq-close" type="button" class="btn-ghost" style="padding:6px 12px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:12px;cursor:pointer;">Fermer</button>
+    </div>
+    <p style="margin:0 0 18px;font-size:13px;line-height:1.6;color:#9aa6ba;">Décrivez l'intervention souhaitée : CTA vous confirme le créneau et la planifie.</p>
+    <form id="ireq-form" style="display:flex;flex-direction:column;gap:12px;">
+      <select id="ir-cat" class="input" required>
+        <option value="">Type d'intervention *</option>
+        <option value="valise">Installation valise Autel</option>
+        <option value="atf">Mise en service station ATF</option>
+        <option value="adas">Conseil, installation &amp; calibration ADAS</option>
+        <option value="conseil">Conseil technique automobile</option>
+        <option value="distance">Mise en service à distance</option>
+        <option value="autre">Autre</option>
+      </select>
+      <select id="ir-endclient" class="input"><option value="">Chez quel client final ? (optionnel)</option></select>
+      <div style="display:flex;flex-direction:column;gap:5px;">
+        <label for="ir-date" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#7fadff;text-transform:uppercase;">Date souhaitée</label>
+        <input id="ir-date" class="input" type="date">
+      </div>
+      <select id="ir-slot" class="input"></select>
+      <input id="ir-equip" class="input" placeholder="Matériel concerné (ex. MS909 neuve)">
+      <input id="ir-loc" class="input" placeholder="Lieu (auto : adresse de la fiche client)">
+      <textarea id="ir-msg" class="input" rows="3" maxlength="2000" placeholder="Précisions : contexte, contraintes d'accès…" style="resize:vertical;"></textarea>
+      <button type="submit" class="btn-primary" style="padding:14px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:14.5px;cursor:pointer;box-shadow:0 8px 26px rgba(47,123,255,.35);">Envoyer la demande</button>
+      <p id="ireq-msg" hidden style="margin:0;text-align:center;font-size:13px;color:#7fadff;"></p>
+    </form>
+  </div>
 </div>
 
 <!-- Lecture et signature d'un devis -->

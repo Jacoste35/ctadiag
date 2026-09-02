@@ -96,6 +96,14 @@
   function eur(n) {
     return n == null ? "Sur devis" : Number(n).toLocaleString("fr-FR", { minimumFractionDigits: Number(n) % 1 ? 2 : 0 }) + " € HT";
   }
+  var CATS = {
+    conseil: "💬 Conseil", valise: "🧰 Valise Autel", atf: "🛢️ Station ATF",
+    adas: "🎯 ADAS", distance: "📞 À distance", autre: "🔧 Autre"
+  };
+  function catChip(c) {
+    return '<span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;border:1px solid rgba(120,150,200,.28);font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#9fb6d8;white-space:nowrap;">' +
+      esc(CATS[c] || CATS.autre) + "</span>";
+  }
   var STATUS = {
     planifiee: ["Planifiée", "badge-blue"], en_cours: ["En cours", "badge-amber"],
     terminee: ["Terminée", "badge-green"], annulee: ["Annulée", "badge-grey"],
@@ -118,7 +126,7 @@
   tabs.forEach(function (t) {
     t.addEventListener("click", function () {
       tabs.forEach(function (x) { x.classList.toggle("active", x === t); });
-      ["interventions", "documents", "grille", "messagerie"].forEach(function (name) {
+      ["interventions", "documents", "grille", "clients", "messagerie"].forEach(function (name) {
         document.getElementById("tab-" + name).hidden = name !== t.dataset.tab;
       });
     });
@@ -165,6 +173,12 @@
     typeEl.textContent = clientType === "distributeur" ? "Distributeur" : "Client direct";
     if (p.role === "admin") document.getElementById("admin-link").hidden = false;
     if (p.must_change_password) showPasswordModal();
+    if (clientType === "distributeur") {
+      document.getElementById("tab-btn-clients").hidden = false;
+      document.getElementById("ireq-btn").hidden = false;
+      loadFiches();
+      loadMyRequests();
+    }
     if (clientType !== "distributeur") {
       // Client direct : l'onglet devient « Vos tarifs » (tarifs publics, sans remise)
       document.querySelector('[data-tab="grille"]').textContent = "Vos tarifs";
@@ -208,7 +222,9 @@
   }
 
   /* ---------- Interventions ---------- */
-  api("cta_interventions?select=*&order=date.asc").then(function (rows) {
+  var myInterventions = [];
+  api("cta_interventions?select=*,cta_end_clients(company_name)&order=date.asc").then(function (rows) {
+    myInterventions = rows;
     var host = document.getElementById("interv-list");
     document.getElementById("stat-interv").textContent =
       rows.filter(function (r) { return r.status === "planifiee" || r.status === "en_cours"; }).length;
@@ -217,13 +233,16 @@
       return;
     }
     host.innerHTML = rows.map(function (r) {
+      var endClient = r.cta_end_clients && r.cta_end_clients.company_name;
       return '<div class="list-row">' +
         '<div style="min-width:120px;font-family:\'IBM Plex Mono\',monospace;font-size:13px;color:#c9d4e6;">' + esc(fmtDate(r.date)) + (r.time_slot ? " · " + esc(r.time_slot) : "") + "</div>" +
-        '<div style="flex:1;min-width:220px;"><div style="font-weight:800;font-size:15px;">' + esc(r.type) + "</div>" +
+        '<div style="flex:1;min-width:220px;"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span style="font-weight:800;font-size:15px;">' + esc(r.type) + "</span>" + catChip(r.category) + "</div>" +
+        (endClient ? '<div style="margin-top:3px;font-size:13px;color:#7fadff;">🏁 Chez ' + esc(endClient) + "</div>" : "") +
         '<div style="margin-top:3px;font-size:13px;color:#93a0b5;">' + esc(r.equipment || "") + (r.location ? " · " + esc(r.location) : "") + "</div>" +
         (r.notes ? '<div style="margin-top:4px;font-size:12.5px;color:#5f6d84;">' + esc(r.notes) + "</div>" : "") + "</div>" +
         badge(r.status) + "</div>";
     }).join("");
+    renderFiches();
   }).catch(function () { showError("Impossible de charger les interventions : reconnectez-vous ou réessayez plus tard."); });
 
   /* ---------- Devis & factures (lecture et signature en ligne) ---------- */
@@ -354,6 +373,161 @@
     gridRows = rows;
     renderGrid();
   }).catch(function () { showError("Impossible de charger la grille tarifaire : reconnectez-vous ou réessayez plus tard."); });
+
+  /* ---------- Mes clients (fiches clients finaux, distributeurs) ---------- */
+  var fiches = [];
+  function loadFiches() {
+    return api("cta_end_clients?select=*&order=company_name.asc").then(function (rows) {
+      fiches = rows;
+      renderFiches();
+      fillFicheSelect();
+    }).catch(function () { showError("Impossible de charger vos fiches clients."); });
+  }
+  function renderFiches() {
+    var host = document.getElementById("ec-list");
+    if (!host) return;
+    if (!fiches.length) {
+      host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Aucune fiche client : créez la première ci-dessus.</p>';
+      return;
+    }
+    host.innerHTML = fiches.map(function (f) {
+      var nb = myInterventions.filter(function (i) { return i.end_client_id === f.id; }).length;
+      return '<div class="list-row" data-ec-row="' + f.id + '" style="align-items:center;">' +
+        '<div style="min-width:170px;">' +
+        '<div style="font-weight:800;font-size:14.5px;">' + esc(f.company_name) + "</div>" +
+        '<div style="margin-top:3px;font-size:12px;color:#5f6d84;">' + nb + " intervention" + (nb > 1 ? "s" : "") + " CTA</div></div>" +
+        '<input class="input" data-f="contact_name" value="' + esc(f.contact_name || "") + '" placeholder="Contact" style="width:120px;padding:9px 12px;font-size:13px;">' +
+        '<input class="input" data-f="phone" value="' + esc(f.phone || "") + '" placeholder="Téléphone" style="width:125px;padding:9px 12px;font-size:13px;">' +
+        '<input class="input" data-f="email" value="' + esc(f.email || "") + '" placeholder="E-mail" style="flex:1;min-width:140px;padding:9px 12px;font-size:13px;">' +
+        '<input class="input" data-f="address" value="' + esc(f.address || "") + '" placeholder="Adresse" style="flex:1 1 100%;min-width:200px;padding:9px 12px;font-size:13px;">' +
+        '<div style="display:flex;gap:8px;">' +
+        '<button style="padding:7px 14px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:12px;cursor:pointer;font-family:\'Archivo\',sans-serif;" data-ec-save="' + f.id + '">Enregistrer</button>' +
+        '<button style="padding:7px 14px;border-radius:999px;border:1px solid rgba(255,110,110,.35);background:transparent;color:#ff8c8c;font-weight:700;font-size:12px;cursor:pointer;font-family:\'Archivo\',sans-serif;" data-ec-del="' + f.id + '">✕</button>' +
+        "</div></div>";
+    }).join("");
+    host.querySelectorAll("[data-ec-save]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var row = host.querySelector('[data-ec-row="' + b.dataset.ecSave + '"]');
+        var body = {};
+        row.querySelectorAll("[data-f]").forEach(function (inp) { body[inp.dataset.f] = inp.value.trim() || null; });
+        api("cta_end_clients?id=eq." + b.dataset.ecSave, { method: "PATCH", body: body })
+          .then(function () {
+            Object.assign(fiches.find(function (x) { return x.id === b.dataset.ecSave; }), body);
+            renderFiches(); fillFicheSelect();
+          }).catch(function () { showError("Enregistrement impossible."); });
+      });
+    });
+    host.querySelectorAll("[data-ec-del]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        if (!window.confirm("Supprimer cette fiche client ? (l'historique des interventions est conservé)")) return;
+        api("cta_end_clients?id=eq." + b.dataset.ecDel, { method: "DELETE" })
+          .then(function () {
+            fiches = fiches.filter(function (x) { return x.id !== b.dataset.ecDel; });
+            renderFiches(); fillFicheSelect();
+          }).catch(function () { showError("Suppression impossible."); });
+      });
+    });
+  }
+  var ecForm = document.getElementById("ec-form");
+  if (ecForm) ecForm.addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var body = {
+      distributor_id: uid,
+      company_name: document.getElementById("ec-company").value.trim(),
+      contact_name: document.getElementById("ec-contact").value.trim() || null,
+      phone: document.getElementById("ec-phone").value.trim() || null,
+      email: document.getElementById("ec-email").value.trim() || null,
+      address: document.getElementById("ec-address").value.trim() || null,
+      notes: document.getElementById("ec-notes").value.trim() || null
+    };
+    if (!body.company_name) return;
+    api("cta_end_clients", { method: "POST", body: body })
+      .then(function () { ecForm.reset(); return loadFiches(); })
+      .catch(function () { showError("Création de la fiche impossible."); });
+  });
+
+  /* ---------- Demandes d'intervention (distributeurs) ---------- */
+  var myRequests = [];
+  var REQ_STATUS = { nouvelle: ["Envoyée", "badge-blue"], acceptee: ["Planifiée ✓", "badge-green"], refusee: ["Refusée", "badge-grey"] };
+  function loadMyRequests() {
+    return api("cta_intervention_requests?select=*,cta_end_clients(company_name)&order=created_at.desc").then(function (rows) {
+      myRequests = rows;
+      var wrap = document.getElementById("myreq-wrap");
+      wrap.hidden = !rows.length;
+      if (!rows.length) return;
+      document.getElementById("myreq-list").innerHTML = rows.map(function (r) {
+        var st = REQ_STATUS[r.status] || [r.status, "badge-grey"];
+        return '<div class="list-row">' +
+          catChip(r.category) +
+          '<div style="flex:1;min-width:200px;">' +
+          '<div style="font-size:13.5px;font-weight:700;">' +
+          (r.cta_end_clients ? "Chez " + esc(r.cta_end_clients.company_name) : "Pour votre société") +
+          (r.desired_date ? " · souhaité le " + esc(fmtDate(r.desired_date)) + (r.desired_slot ? " à " + esc(r.desired_slot) : "") : "") + "</div>" +
+          (r.message ? '<div style="margin-top:3px;font-size:12.5px;color:#8b98ae;">' + esc(r.message) + "</div>" : "") +
+          '<div style="margin-top:3px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#5f6d84;">Envoyée le ' + esc(fmtDateTime(r.created_at)) + "</div></div>" +
+          '<span class="badge ' + st[1] + '">' + st[0] + "</span></div>";
+      }).join("");
+    }).catch(function () { /* non bloquant */ });
+  }
+  var ireqBtn = document.getElementById("ireq-btn");
+  function fillFicheSelect() {
+    var sel = document.getElementById("ir-endclient");
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Chez quel client final ? (optionnel)</option>' +
+      fiches.map(function (f) { return '<option value="' + f.id + '">' + esc(f.company_name) + "</option>"; }).join("");
+  }
+  if (ireqBtn) {
+    var slotSel = document.getElementById("ir-slot");
+    var slotOpts = '<option value="">Heure souhaitée (indifférent)</option>';
+    for (var h = 8; h <= 18; h++) {
+      ["00", "30"].forEach(function (m) {
+        if (h === 18 && m === "30") return;
+        var t = String(h).padStart(2, "0") + ":" + m;
+        slotOpts += '<option value="' + t + '">' + t + "</option>";
+      });
+    }
+    slotSel.innerHTML = slotOpts;
+    ireqBtn.addEventListener("click", function () {
+      fillFicheSelect();
+      document.getElementById("ireq-msg").hidden = true;
+      document.getElementById("ireq-modal").hidden = false;
+    });
+    document.getElementById("ireq-close").addEventListener("click", function () {
+      document.getElementById("ireq-modal").hidden = true;
+    });
+    document.getElementById("ir-endclient").addEventListener("change", function () {
+      var f = fiches.find(function (x) { return x.id === this.value; }.bind(this));
+      var loc = document.getElementById("ir-loc");
+      if (f && f.address && !loc.value.trim()) loc.value = f.address;
+    });
+    document.getElementById("ireq-form").addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var cat = document.getElementById("ir-cat").value;
+      if (!cat) return;
+      var body = {
+        partner_id: uid,
+        end_client_id: document.getElementById("ir-endclient").value || null,
+        category: cat,
+        desired_date: document.getElementById("ir-date").value || null,
+        desired_slot: document.getElementById("ir-slot").value || null,
+        equipment: document.getElementById("ir-equip").value.trim() || null,
+        location: document.getElementById("ir-loc").value.trim() || null,
+        message: document.getElementById("ir-msg").value.trim() || null
+      };
+      api("cta_intervention_requests", { method: "POST", body: body })
+        .then(function () {
+          document.getElementById("ireq-form").reset();
+          document.getElementById("ireq-modal").hidden = true;
+          return loadMyRequests();
+        })
+        .catch(function () {
+          var msg = document.getElementById("ireq-msg");
+          msg.hidden = false;
+          msg.style.color = "#ff8c8c";
+          msg.textContent = "Envoi impossible, réessayez plus tard.";
+        });
+    });
+  }
 
   /* ---------- Messagerie / tickets ---------- */
   var tickets = [];
