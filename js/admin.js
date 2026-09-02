@@ -177,6 +177,58 @@
     return c ? (c.company_name || c.email || "?") : "?";
   }
 
+  /* ---------- Planning du jour ---------- */
+  function isoToday() {
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function renderToday() {
+    var host = document.getElementById("today-list");
+    document.getElementById("today-date").textContent =
+      new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+    var today = isoToday();
+    var rows = interventions
+      .filter(function (r) { return r.date === today && r.status !== "annulee"; })
+      .sort(function (a, b) { return (a.time_slot || "99") < (b.time_slot || "99") ? -1 : 1; });
+    if (!rows.length) {
+      var next = interventions
+        .filter(function (r) { return r.date > today && r.status === "planifiee"; })
+        .sort(function (a, b) { return a.date < b.date ? -1 : 1; })[0];
+      host.innerHTML = '<p style="margin:0;color:#8b98ae;font-size:14px;line-height:1.6;">Aucune intervention aujourd\'hui — profitez-en pour souffler 😌' +
+        (next ? '<br><span style="color:#5f6d84;font-size:13px;">Prochaine intervention : <strong style="color:#7fadff;">' + esc(fmtDate(next.date)) + (next.time_slot ? " à " + esc(next.time_slot) : "") + "</strong> — " + esc(next.type) + " (" + esc(clientName(next.partner_id)) + ")</span>" : "") + "</p>";
+      return;
+    }
+    host.innerHTML = rows.map(function (r) {
+      var c = clients.find(function (x) { return x.id === r.partner_id; }) || {};
+      var addr = r.location || c.address || "";
+      return '<div data-today-row="' + r.id + '" style="border-radius:16px;background:rgba(47,123,255,.07);border:1px solid rgba(77,141,255,.3);padding:18px;display:flex;flex-direction:column;gap:10px;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">' +
+        '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:20px;font-weight:700;color:#7fadff;">' + esc(r.time_slot || "Journée") + "</span>" + badge(r.status) + "</div>" +
+        '<div><div style="font-weight:800;font-size:15.5px;line-height:1.3;">' + esc(r.type) + "</div>" +
+        (r.equipment ? '<div style="margin-top:3px;font-size:12.5px;color:#93a0b5;">' + esc(r.equipment) + "</div>" : "") + "</div>" +
+        '<div style="padding:12px 14px;border-radius:12px;background:rgba(10,13,19,.6);border:1px solid rgba(120,150,200,.15);display:flex;flex-direction:column;gap:5px;">' +
+        '<div style="font-weight:700;font-size:14px;">' + esc(c.company_name || "Client inconnu") + (c.contact_name ? ' <span style="font-weight:600;color:#8b98ae;">· ' + esc(c.contact_name) + "</span>" : "") + "</div>" +
+        (c.phone ? '<div style="font-size:13px;color:#9aa6ba;">📞 ' + esc(c.phone) + "</div>" : "") +
+        (addr ? '<div style="font-size:13px;color:#9aa6ba;line-height:1.45;">📍 ' + esc(addr) + "</div>" : "") +
+        (r.notes ? '<div style="font-size:12.5px;color:#5f6d84;">📝 ' + esc(r.notes) + "</div>" : "") + "</div>" +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:auto;">' +
+        (c.phone ? '<a href="tel:' + esc(c.phone.replace(/\s/g, "")) + '" class="btn-primary" style="padding:9px 16px;border-radius:999px;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:12.5px;box-shadow:0 4px 14px rgba(47,123,255,.35);">📞 Appeler</a>' : "") +
+        (addr ? '<a href="https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(addr) + '" target="_blank" rel="noopener" ' + GHOST_BTN.replace("cursor:pointer;", "") + ">🗺️ Itinéraire</a>" : "") +
+        statusSelect(r.status, ["planifiee", "en_cours", "terminee", "annulee"], "today-status") +
+        "</div></div>";
+    }).join("");
+    host.querySelectorAll(".today-status").forEach(function (sel) {
+      sel.addEventListener("change", function () {
+        var id = sel.closest("[data-today-row]").dataset.todayRow;
+        api("cta_interventions?id=eq." + id, { method: "PATCH", body: { status: sel.value } })
+          .then(function () {
+            interventions.find(function (x) { return x.id === id; }).status = sel.value;
+            refreshStats(); renderToday(); renderInterventions();
+          }).catch(function () { showError("Mise à jour impossible."); });
+      });
+    });
+  }
+
   function refreshStats() {
     document.getElementById("stat-quotes").textContent = quotes.filter(function (q) { return q.status === "new"; }).length;
     document.getElementById("stat-tickets").textContent = tickets.filter(function (t) { return t.status === "ouvert" || t.status === "en_cours"; }).length;
@@ -197,7 +249,7 @@
       clients = res[0]; quotes = res[1]; interventions = res[2];
       documents = res[3]; grid = res[4]; tickets = res[5]; blockedDates = res[6];
       if (!currentTicket && tickets.length) currentTicket = tickets[0].id;
-      refreshStats();
+      refreshStats(); renderToday();
       renderQuotes(); renderClients(); renderClientSelects();
       renderInterventions(); renderDocuments(); renderGrid();
       renderTicketList(); renderThread(); renderBlocked();
@@ -374,7 +426,7 @@
         api("cta_interventions?id=eq." + id, { method: "PATCH", body: { status: sel.value } })
           .then(function () {
             interventions.find(function (x) { return x.id === id; }).status = sel.value;
-            refreshStats();
+            refreshStats(); renderToday();
           }).catch(function () { showError("Mise à jour impossible."); });
       });
     });
@@ -384,7 +436,7 @@
         api("cta_interventions?id=eq." + b.dataset.ivDel, { method: "DELETE" })
           .then(function () {
             interventions = interventions.filter(function (x) { return x.id !== b.dataset.ivDel; });
-            refreshStats(); renderInterventions();
+            refreshStats(); renderToday(); renderInterventions();
           }).catch(function () { showError("Suppression impossible."); });
       });
     });
@@ -406,7 +458,7 @@
         ev.target.reset();
         return api("cta_interventions?select=*&order=date.desc");
       })
-      .then(function (rows) { interventions = rows; refreshStats(); renderInterventions(); })
+      .then(function (rows) { interventions = rows; refreshStats(); renderToday(); renderInterventions(); })
       .catch(function () { showError("Création impossible."); });
   });
 
