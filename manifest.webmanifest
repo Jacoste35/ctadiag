@@ -1,7 +1,7 @@
 {
-  "name": "CTA — Conseil Technique Auto",
+  "name": "CTA · Conseil Technique Auto",
   "short_name": "CTA",
-  "description": "Espace CTA : suivi des interventions, devis et factures, tarifs et messagerie — pour les clients directs, les distributeurs et le gérant.",
+  "description": "Espace CTA : suivi des interventions, devis et factures, tarifs et messagerie, pour les clients directs, les distributeurs et le gérant.",
   "lang": "fr",
   "start_url": "./connexion.html",
   "scope": "./",

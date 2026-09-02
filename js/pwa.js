@@ -1,4 +1,4 @@
-// Enregistrement du service worker — rend le site installable en application.
+// Enregistrement du service worker · rend le site installable en application.
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", function () {
     navigator.serviceWorker.register("./sw.js").catch(function () {

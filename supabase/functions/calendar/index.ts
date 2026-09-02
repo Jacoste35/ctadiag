@@ -1,4 +1,4 @@
-// Fonction Edge `calendar` — flux iCalendar (ICS) des interventions CTA.
+// Fonction Edge `calendar` · flux iCalendar (ICS) des interventions CTA.
 // Permet de s'abonner à l'agenda depuis un téléphone (iOS / Google Agenda).
 // Accès par jeton secret (?t=...) vérifié dans cta_calendar_tokens :
 // jeton « gérant » (partner_id null) = toutes les interventions + jours bloqués ;
@@ -10,7 +10,7 @@ const esc = (s: string) =>
   s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
 
 const dt = (date: string, time: string | null, addMinutes = 0) => {
-  // Heure « flottante » locale (interprétée dans le fuseau du téléphone — France)
+  // Heure « flottante » locale (interprétée dans le fuseau du téléphone, France)
   const [h, m] = (time ?? "09:00").split(":").map(Number);
   const d = new Date(2000, 0, 1, h, m + addMinutes);
   return date.replace(/-/g, "") + "T" +
@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
 
   for (const iv of interventions ?? []) {
     const partner = byId.get(iv.partner_id);
-    const who = partner?.company_name ? ` — ${partner.company_name}` : "";
+    const who = partner?.company_name ? ` · ${partner.company_name}` : "";
     const location = iv.location || partner?.address || "";
     const descParts = [
       iv.equipment ? `Matériel : ${iv.equipment}` : "",
@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
         `UID:blocked-${b.day}@cta-auto`,
         `DTSTAMP:${stamp}`,
         `DTSTART;VALUE=DATE:${b.day.replace(/-/g, "")}`,
-        `SUMMARY:${esc("Indisponible" + (b.reason ? " — " + b.reason : ""))}`,
+        `SUMMARY:${esc("Indisponible" + (b.reason ? " · " + b.reason : ""))}`,
         "TRANSP:TRANSPARENT",
         "END:VEVENT",
       );

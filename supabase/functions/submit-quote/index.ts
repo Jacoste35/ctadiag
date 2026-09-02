@@ -1,4 +1,4 @@
-// Fonction Edge `submit-quote` — réception des demandes de devis du site CTA.
+// Fonction Edge `submit-quote` · réception des demandes de devis du site CTA.
 // Valide la demande, l'enregistre dans public.quote_requests (service role),
 // puis notifie par e-mail si RESEND_API_KEY est configurée (facultatif).
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           from: "Site CTA <onboarding@resend.dev>",
           to: [notifyTo],
-          subject: `Nouvelle demande de devis — ${name}`,
+          subject: `Nouvelle demande de devis · ${name}`,
           text:
             `Société : ${name}\nContact : ${contact}\n` +
             `Prestations : ${services.join(", ") || "non précisées"}\n` +

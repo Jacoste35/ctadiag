@@ -1,4 +1,4 @@
-/* Service worker CTA — application installable.
+/* Service worker CTA · application installable.
    Stratégie : réseau d'abord pour les pages et le code (les mises à jour du site
    arrivent immédiatement quand on est en ligne, le cache sert de secours hors
    ligne) ; cache d'abord pour les images. Les appels au backend (autre origine)

@@ -1,4 +1,4 @@
-// Fonction Edge `send-reminders` — rappels automatiques de rendez-vous.
+// Fonction Edge `send-reminders` · rappels automatiques de rendez-vous.
 // Appelée chaque matin par pg_cron (en-tête X-Reminders-Key vérifié contre
 // cta_settings). Envoie aux clients un e-mail à J-7, J-3 (72 h), J-1 (24 h)
 // et le jour J (annonce du passage du technicien), avec la politique
@@ -7,8 +7,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const POLICY =
-  "⚠️ Tout rendez-vous non décommandé au minimum 24 h à l'avance — sauf urgence " +
-  "ou accord direct avec votre prestataire — est considéré comme réalisé et " +
+  "⚠️ Tout rendez-vous non décommandé au minimum 24 h à l'avance (sauf urgence " +
+  "ou accord direct avec votre prestataire) est considéré comme réalisé et " +
   "facturé au client.";
 
 const STAGES: Array<{ stage: string; days: number }> = [
@@ -105,22 +105,22 @@ Deno.serve(async (req) => {
           `votre technicien CTA se présentera aujourd'hui${iv.time_slot ? ` à ${iv.time_slot}` : ""} ` +
           `à ${place}. Merci de prévoir l'accès au matériel et à l'atelier.`;
       } else if (stage === "j1") {
-        subject = `Rappel : intervention CTA demain — ${when}`;
+        subject = `Rappel : intervention CTA demain · ${when}`;
         intro =
           `votre intervention est prévue demain. C'est le dernier moment pour ` +
           `annuler ou déplacer sans facturation (24 h avant).`;
       } else if (stage === "j3") {
-        subject = `Rappel : intervention CTA dans 3 jours — ${when}`;
+        subject = `Rappel : intervention CTA dans 3 jours · ${when}`;
         intro = "votre intervention approche, voici le récapitulatif.";
       } else {
-        subject = `Rappel : intervention CTA dans une semaine — ${when}`;
+        subject = `Rappel : intervention CTA dans une semaine · ${when}`;
         intro = "votre intervention est planifiée la semaine prochaine.";
       }
 
       const name = partner.contact_name || partner.company_name || "";
       const body =
         `Bonjour${name ? " " + name : ""},\n\n${intro}\n\n${details}\n${cancelBlock}\n\n` +
-        `À très bientôt,\nCTA — Conseil Technique Auto\n${replyTo}`;
+        `À très bientôt,\nCTA · Conseil Technique Auto\n${replyTo}`;
 
       try {
         const res = await fetch("https://api.resend.com/emails", {
@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "CTA — Conseil Technique Auto <onboarding@resend.dev>",
+            from: "CTA · Conseil Technique Auto <onboarding@resend.dev>",
             to: [partner.email],
             reply_to: replyTo,
             subject,
@@ -155,7 +155,7 @@ Deno.serve(async (req) => {
 
   const summary = resendKey
     ? { ok: true, sent: report, date: today }
-    : { ok: false, reason: "RESEND_API_KEY manquant — configurez le secret pour activer les rappels", pending, date: today };
+    : { ok: false, reason: "RESEND_API_KEY manquant : configurez le secret pour activer les rappels", pending, date: today };
   console.log(JSON.stringify(summary));
   return new Response(JSON.stringify(summary), {
     headers: { "Content-Type": "application/json" },

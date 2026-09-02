@@ -1,4 +1,4 @@
-// Fonction Edge `admin-users` — gestion des comptes clients depuis le back-office.
+// Fonction Edge `admin-users` · gestion des comptes clients depuis le back-office.
 // Réservée aux administrateurs (vérification du JWT + rôle dans cta_partners).
 // Actions : create (nouveau client), set_password, delete.
 import { createClient } from "npm:@supabase/supabase-js@2";

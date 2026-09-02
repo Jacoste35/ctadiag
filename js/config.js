@@ -1,4 +1,4 @@
-// Configuration du site CTA — à adapter sans toucher au reste du code.
+// Configuration du site CTA · à adapter sans toucher au reste du code.
 window.CTA_CONFIG = {
   // Adresse e-mail de réception des demandes de devis (utilisée par le repli mailto:)
   emailContact: "contact@cta-auto.fr",
