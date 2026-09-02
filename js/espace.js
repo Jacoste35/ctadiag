@@ -72,7 +72,9 @@
         });
       }
       if (!r.ok) throw new Error("HTTP " + r.status);
-      return r.status === 204 ? null : r.json();
+      if (r.status === 204) return null;
+      // Une création (201) sans en-tête Prefer renvoie un corps vide : ne pas planter dessus
+      return r.text().then(function (t) { return t ? JSON.parse(t) : null; });
     });
   }
 
