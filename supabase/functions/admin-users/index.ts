@@ -46,6 +46,7 @@ Deno.serve(async (req) => {
     const companyName = String(body.company_name ?? "").trim().slice(0, 200);
     const contactName = String(body.contact_name ?? "").trim().slice(0, 200);
     const phone = String(body.phone ?? "").trim().slice(0, 40);
+    const address = String(body.address ?? "").trim().slice(0, 400);
     const clientType = body.client_type === "distributeur" ? "distributeur" : "direct";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "E-mail invalide" }, 400);
     if (password.length < 6) return json({ error: "Mot de passe : 6 caractères minimum" }, 400);
@@ -63,6 +64,7 @@ Deno.serve(async (req) => {
       company_name: companyName || email.split("@")[0],
       contact_name: contactName || null,
       phone: phone || null,
+      address: address || null,
       client_type: clientType,
     }).eq("id", data.user.id);
 

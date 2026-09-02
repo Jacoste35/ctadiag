@@ -270,12 +270,15 @@
       var isAdmin = c.role === "admin";
       return '<div class="list-row" data-client-row="' + c.id + '" style="align-items:center;">' +
         '<div style="min-width:200px;">' +
-        '<div style="font-weight:800;font-size:14.5px;">' + esc(c.email || "") + "</div>" +
-        '<div style="margin-top:4px;display:flex;gap:6px;">' + typeBadge(c.client_type) +
-        (isAdmin ? ' <span class="badge badge-amber">Admin</span>' : "") + "</div></div>" +
+        '<a href="mailto:' + esc(c.email || "") + '" style="font-weight:800;font-size:14.5px;">' + esc(c.email || "") + "</a>" +
+        '<div style="margin-top:4px;display:flex;gap:6px;align-items:center;">' + typeBadge(c.client_type) +
+        (isAdmin ? ' <span class="badge badge-amber">Admin</span>' : "") +
+        (c.address ? ' <a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(c.address) + '" target="_blank" rel="noopener" title="Itinéraire" style="font-size:13px;">🗺️ Itinéraire</a>' : "") +
+        "</div></div>" +
         '<input class="input" data-f="company_name" value="' + esc(c.company_name || "") + '" placeholder="Société" style="flex:1;min-width:140px;padding:10px 12px;font-size:13.5px;">' +
         '<input class="input" data-f="contact_name" value="' + esc(c.contact_name || "") + '" placeholder="Contact" style="width:130px;padding:10px 12px;font-size:13.5px;">' +
         '<input class="input" data-f="phone" value="' + esc(c.phone || "") + '" placeholder="Téléphone" style="width:130px;padding:10px 12px;font-size:13.5px;">' +
+        '<input class="input" data-f="address" value="' + esc(c.address || "") + '" placeholder="Adresse postale" style="flex:1 1 100%;min-width:200px;padding:10px 12px;font-size:13.5px;">' +
         '<select class="input" data-f="client_type" style="padding:10px 12px;width:auto;font-size:13px;">' +
         '<option value="direct"' + (c.client_type === "direct" ? " selected" : "") + ">Direct</option>" +
         '<option value="distributeur"' + (c.client_type === "distributeur" ? " selected" : "") + ">Distributeur</option></select>" +
@@ -339,6 +342,7 @@
       company_name: document.getElementById("c-company").value.trim(),
       contact_name: document.getElementById("c-contact").value.trim(),
       phone: document.getElementById("c-phone").value.trim(),
+      address: document.getElementById("c-address").value.trim(),
       client_type: document.getElementById("c-type").value
     }).then(function () {
       clientForm.reset();
@@ -604,6 +608,79 @@
         return reloadTickets();
       })
       .catch(function () { showError("Envoi impossible."); });
+  });
+
+  /* ---------- Synchronisation agenda (flux iCalendar) ---------- */
+  function setupCalendarSync() {
+    api("cta_calendar_tokens?select=token&partner_id=is.null&limit=1")
+      .then(function (rows) {
+        if (rows.length) return rows[0].token;
+        var t = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : null;
+        if (!t) throw new Error("uuid");
+        return api("cta_calendar_tokens", {
+          method: "POST",
+          body: { token: t, partner_id: null, label: "Agenda du gérant" },
+          prefer: "return=representation"
+        }).then(function (r) { return r[0].token; });
+      })
+      .then(function (token) {
+        var url = API + "/functions/v1/calendar?t=" + token;
+        var input = document.getElementById("cal-url");
+        input.value = url;
+        document.getElementById("cal-webcal").href = url.replace(/^https:/, "webcal:");
+        document.getElementById("cal-copy").addEventListener("click", function () {
+          var btn = this;
+          function done() { btn.textContent = "Copié ✓"; setTimeout(function () { btn.textContent = "Copier le lien"; }, 2000); }
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(done);
+          } else {
+            input.select();
+            document.execCommand("copy");
+            done();
+          }
+        });
+      })
+      .catch(function () {
+        document.getElementById("cal-url").value = "Lien indisponible — rechargez la page.";
+      });
+  }
+  setupCalendarSync();
+
+  // Export ponctuel .ics (généré depuis les données chargées)
+  document.getElementById("cal-ics").addEventListener("click", function () {
+    function icsEsc(s) {
+      return String(s || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+    }
+    var lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//CTA//Agenda//FR", "X-WR-CALNAME:CTA · Interventions"];
+    interventions.forEach(function (iv) {
+      if (!iv.date) return;
+      var partner = clients.find(function (c) { return c.id === iv.partner_id; });
+      var start = iv.date.replace(/-/g, "");
+      lines.push("BEGIN:VEVENT", "UID:" + iv.id + "@cta-auto");
+      if (iv.time_slot && /^\d{2}:\d{2}/.test(iv.time_slot)) {
+        var hm = iv.time_slot.slice(0, 5).replace(":", "");
+        lines.push("DTSTART:" + start + "T" + hm + "00");
+      } else {
+        lines.push("DTSTART;VALUE=DATE:" + start);
+      }
+      lines.push("SUMMARY:" + icsEsc(iv.type + (partner && partner.company_name ? " — " + partner.company_name : "")));
+      var loc = iv.location || (partner && partner.address) || "";
+      if (loc) lines.push("LOCATION:" + icsEsc(loc));
+      lines.push("END:VEVENT");
+    });
+    blockedDates.forEach(function (b) {
+      lines.push("BEGIN:VEVENT", "UID:blocked-" + b.day + "@cta-auto",
+        "DTSTART;VALUE=DATE:" + b.day.replace(/-/g, ""),
+        "SUMMARY:" + icsEsc("Indisponible" + (b.reason ? " — " + b.reason : "")), "END:VEVENT");
+    });
+    lines.push("END:VCALENDAR");
+    var blob = new Blob([lines.join("\r\n")], { type: "text/calendar;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "cta-agenda.ics";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   });
 
   /* ---------- Agenda (jours bloqués) ---------- */
