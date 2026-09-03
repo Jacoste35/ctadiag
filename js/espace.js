@@ -146,7 +146,25 @@
       ["interventions", "documents", "grille", "clients", "materiel", "mes", "messagerie"].forEach(function (name) {
         document.getElementById("tab-" + name).hidden = name !== t.dataset.tab;
       });
+      syncBottomNav(t.dataset.tab);
     });
+  });
+
+  /* ---------- Menu bas façon application (téléphone) ---------- */
+  function syncBottomNav(name) {
+    document.querySelectorAll("#bottom-nav [data-bn-tab]").forEach(function (b) {
+      b.classList.toggle("active", b.dataset.bnTab === name);
+    });
+  }
+  document.querySelectorAll("#bottom-nav [data-bn-tab]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var tab = document.querySelector('.tab[data-tab="' + b.dataset.bnTab + '"]');
+      if (tab) tab.click();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+  document.getElementById("bn-profile").addEventListener("click", function () {
+    document.getElementById("profile-btn").click();
   });
 
   function fn(name, body, retried) {
@@ -383,15 +401,20 @@
   /* ---------- Interventions (groupées par mois et semaine, archivables) ---------- */
   var myInterventions = [];
   var showArchivedIv = false;
+  // Une intervention passée et réalisée part automatiquement aux archives
+  function isDoneIv(r) {
+    return r.status === "terminee" && r.date && r.date < isoOfDay(new Date());
+  }
+  function ivArchived(r) { return r.client_archived || isDoneIv(r); }
   function renderMyInterventions() {
     var host = document.getElementById("interv-list");
     document.getElementById("stat-interv").textContent =
       myInterventions.filter(function (r) { return r.status === "planifiee" || r.status === "en_cours"; }).length;
     var rows = myInterventions
-      .filter(function (r) { return showArchivedIv ? r.client_archived : !r.client_archived; })
+      .filter(function (r) { return showArchivedIv ? ivArchived(r) : !ivArchived(r); })
       .slice()
       .sort(function (a, b) { return ((b.date || "") + (b.time_slot || "")) < ((a.date || "") + (a.time_slot || "")) ? -1 : 1; });
-    var archivedCount = myInterventions.filter(function (r) { return r.client_archived; }).length;
+    var archivedCount = myInterventions.filter(ivArchived).length;
     var toggle = archivedCount
       ? '<div style="padding:12px 24px;"><button type="button" id="iv-toggle-archived" style="padding:9px 14px;border-radius:999px;border:1px dashed rgba(120,150,200,.3);background:transparent;color:#8b98ae;font-weight:700;font-size:12.5px;cursor:pointer;font-family:\'Archivo\',sans-serif;">' +
         (showArchivedIv ? "← Retour aux interventions" : "🗄️ Voir les archives (" + archivedCount + ")") + "</button></div>"
@@ -423,8 +446,10 @@
         '<div style="margin-top:3px;font-size:13px;color:#93a0b5;">' + esc(r.equipment || "") + (r.location ? " · " + esc(r.location) : "") + "</div>" +
         (r.notes ? '<div style="margin-top:4px;font-size:12.5px;color:#5f6d84;">' + esc(r.notes) + "</div>" : "") + "</div>" +
         badge(r.status) +
-        '<button type="button" data-iv-arch="' + r.id + '" title="' + (r.client_archived ? "Désarchiver" : "Archiver") + '" style="padding:7px 12px;border-radius:999px;border:1px solid rgba(120,150,200,.25);background:transparent;color:#8b98ae;font-weight:700;font-size:12px;cursor:pointer;font-family:\'Archivo\',sans-serif;">' +
-        (r.client_archived ? "Désarchiver" : "🗄️") + "</button>" +
+        (isDoneIv(r) && !r.client_archived
+          ? '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;color:#5f6d84;" title="Réalisée : archivée automatiquement">auto</span>'
+          : '<button type="button" data-iv-arch="' + r.id + '" title="' + (r.client_archived ? "Désarchiver" : "Archiver") + '" style="padding:7px 12px;border-radius:999px;border:1px solid rgba(120,150,200,.25);background:transparent;color:#8b98ae;font-weight:700;font-size:12px;cursor:pointer;font-family:\'Archivo\',sans-serif;">' +
+            (r.client_archived ? "Désarchiver" : "🗄️") + "</button>") +
         (clientType === "distributeur"
           ? '<button type="button" data-iv-del="' + r.id + '" title="Supprimer" style="padding:7px 12px;border-radius:999px;border:1px solid rgba(255,110,110,.35);background:transparent;color:#ff8c8c;font-weight:700;font-size:12px;cursor:pointer;font-family:\'Archivo\',sans-serif;">✕</button>'
           : "") +
@@ -673,6 +698,7 @@
       fiches = rows;
       renderFiches();
       fillFicheSelect();
+      fillEqrEndclient();
     }).catch(function () { showError("Impossible de charger vos fiches clients."); });
   }
   function renderFiches() {
@@ -769,7 +795,7 @@
   function fillFicheSelect() {
     var sel = document.getElementById("ir-endclient");
     if (!sel) return;
-    sel.innerHTML = '<option value="">Chez quel client final ? (optionnel)</option>' +
+    sel.innerHTML = '<option value="">Chez quel client final ? *</option>' +
       fiches.map(function (f) { return '<option value="' + f.id + '">' + esc(f.company_name) + "</option>"; }).join("") +
       '<option value="__new">➕ Créer un nouveau client final…</option>';
   }
@@ -830,24 +856,31 @@
         msg.textContent = text;
       }
       var endChoice = clientType === "distributeur" ? document.getElementById("ir-endclient").value : "";
-      // « Créer un nouveau client final » : la fiche est créée d'abord, puis utilisée
+      // Distributeur : le client final est obligatoire (fiche existante ou créée, complète)
+      if (clientType === "distributeur" && !endChoice) {
+        fail("Choisissez le client final concerné, ou créez sa fiche.");
+        return;
+      }
       var ficheReady;
       if (endChoice === "__new") {
-        var company = document.getElementById("irn-company").value.trim();
-        if (!company) { fail("Indiquez le nom du nouveau client final."); return; }
+        var newFiche = {
+          distributor_id: uid,
+          company_name: document.getElementById("irn-company").value.trim(),
+          contact_name: document.getElementById("irn-contact").value.trim(),
+          phone: document.getElementById("irn-phone").value.trim(),
+          email: document.getElementById("irn-email").value.trim() || null,
+          address: document.getElementById("irn-address").value.trim(),
+          postal_code: document.getElementById("irn-zip").value.trim(),
+          city: document.getElementById("irn-city").value.trim()
+        };
+        if (!newFiche.company_name || !newFiche.contact_name || !newFiche.phone || !newFiche.address || !newFiche.postal_code || !newFiche.city) {
+          fail("Complétez toute la fiche du client final (société, contact, téléphone, adresse, code postal, ville).");
+          return;
+        }
         ficheReady = api("cta_end_clients", {
           method: "POST",
           prefer: "return=representation",
-          body: {
-            distributor_id: uid,
-            company_name: company,
-            contact_name: document.getElementById("irn-contact").value.trim() || null,
-            phone: document.getElementById("irn-phone").value.trim() || null,
-            email: document.getElementById("irn-email").value.trim() || null,
-            address: document.getElementById("irn-address").value.trim() || null,
-            postal_code: document.getElementById("irn-zip").value.trim() || null,
-            city: document.getElementById("irn-city").value.trim() || null
-          }
+          body: newFiche
         }).then(function (rows) {
           var f = rows && rows[0];
           var loc = document.getElementById("ir-loc");
@@ -886,11 +919,65 @@
   }
 
   /* ---------- Location / prêt de matériel ---------- */
+  // Prêt : 24 h à 1 semaine maximum · Location : 24 h à longue durée,
+  // au tarif dégressif ci-dessous (plus c'est long, moins c'est cher par jour).
+  var EQR_DURATIONS = {
+    pret: ["24 h", "48 h", "72 h", "1 semaine"],
+    location: ["24 h", "48 h", "72 h", "1 semaine", "2 semaines", "1 mois", "Longue durée (plus d'un mois)"]
+  };
+  var RENTAL_PRICES = {
+    "24 h": 150, "48 h": 220, "72 h": 270, "1 semaine": 320,
+    "2 semaines": 335, "1 mois": 350, "Longue durée (plus d'un mois)": 350
+  };
+  function rentalPriceLabel(dur) {
+    var p = RENTAL_PRICES[dur];
+    if (p == null) return "";
+    return p.toLocaleString("fr-FR") + " € HT";
+  }
   var eqReqs = [];
   var EQR_STATUS = {
     nouvelle: ["Envoyée", "badge-blue"], acceptee: ["Acceptée ✓", "badge-green"],
     refusee: ["Refusée", "badge-grey"], terminee: ["Terminée", "badge-grey"]
   };
+  function refreshEqrDurations() {
+    var kind = document.getElementById("eqr-kind").value;
+    var sel = document.getElementById("eqr-duration");
+    var current = sel.value;
+    sel.innerHTML = '<option value="">Durée souhaitée *</option>' +
+      EQR_DURATIONS[kind].map(function (d) {
+        return '<option value="' + esc(d) + '">' + esc(d) +
+          (kind === "location" ? " · " + rentalPriceLabel(d) : "") + "</option>";
+      }).join("");
+    if (EQR_DURATIONS[kind].indexOf(current) !== -1) sel.value = current;
+    refreshEqrPrice();
+  }
+  function refreshEqrPrice() {
+    var hint = document.getElementById("eqr-price");
+    var kind = document.getElementById("eqr-kind").value;
+    var dur = document.getElementById("eqr-duration").value;
+    if (kind !== "location" || !dur || RENTAL_PRICES[dur] == null) { hint.hidden = true; return; }
+    hint.hidden = false;
+    hint.textContent = "💶 Location " + dur + " : " + rentalPriceLabel(dur) +
+      (dur === "Longue durée (plus d'un mois)" ? " le premier mois (conditions ajustées ensuite avec CTA)." :
+       " (tarif dégressif : 1 mois complet = 350 € HT seulement).");
+  }
+  document.getElementById("eqr-kind").addEventListener("change", refreshEqrDurations);
+  document.getElementById("eqr-duration").addEventListener("change", refreshEqrPrice);
+  refreshEqrDurations();
+  // Distributeur : la demande peut être pour sa société ou pour un client final
+  function fillEqrEndclient() {
+    var sel = document.getElementById("eqr-endclient");
+    if (clientType !== "distributeur") { sel.hidden = true; return; }
+    sel.hidden = false;
+    var current = sel.value;
+    sel.innerHTML = '<option value="">Pour qui ? Pour ma société</option>' +
+      fiches.map(function (f) { return '<option value="' + f.id + '">🏁 Pour mon client : ' + esc(f.company_name) + "</option>"; }).join("") +
+      '<option value="__new">➕ Pour un nouveau client final…</option>';
+    if (current && sel.querySelector('option[value="' + current + '"]')) sel.value = current;
+  }
+  document.getElementById("eqr-endclient").addEventListener("change", function () {
+    document.getElementById("eqr-newclient").hidden = this.value !== "__new";
+  });
   function renderEqReqs() {
     var host = document.getElementById("eqr-list");
     if (!eqReqs.length) {
@@ -899,19 +986,30 @@
     }
     host.innerHTML = eqReqs.map(function (r) {
       var st = EQR_STATUS[r.status] || [r.status, "badge-grey"];
+      var endClient = r.cta_end_clients && r.cta_end_clients.company_name;
+      var billing = "";
+      if (r.kind === "location" && r.price_ht != null) {
+        billing = '<div style="margin-top:4px;font-size:12.5px;">💶 <strong style="color:#dfe6f2;">' +
+          Number(r.price_ht).toLocaleString("fr-FR") + " € HT</strong> · " +
+          (r.invoiced
+            ? '<span style="color:#38d47a;">Facturée ✓</span>'
+            : '<span style="color:#ffbe50;">En attente de facturation</span>') + "</div>";
+      }
       return '<div class="list-row">' +
         '<span class="badge ' + (r.kind === "location" ? "badge-amber" : "badge-blue") + '">' + (r.kind === "location" ? "💶 Location" : "🤝 Prêt") + "</span>" +
         '<div style="flex:1;min-width:200px;">' +
-        '<div style="font-weight:800;font-size:14.5px;">' + esc(r.product_name) + "</div>" +
+        '<div style="font-weight:800;font-size:14.5px;">' + esc(r.product_name) +
+        (endClient ? ' <span style="font-weight:600;font-size:13px;color:#7fadff;">· 🏁 chez ' + esc(endClient) + "</span>" : "") + "</div>" +
         '<div style="margin-top:3px;font-size:12.5px;color:#93a0b5;">' +
         [r.duration ? "⏱️ " + r.duration : "", r.start_date ? "📅 à partir du " + fmtDate(r.start_date) : ""].filter(Boolean).map(esc).join(" · ") + "</div>" +
+        billing +
         (r.message ? '<div style="margin-top:3px;font-size:12.5px;color:#8b98ae;">' + esc(r.message) + "</div>" : "") +
         '<div style="margin-top:3px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#5f6d84;">Envoyée le ' + esc(fmtDateTime(r.created_at)) + "</div></div>" +
         '<span class="badge ' + st[1] + '">' + st[0] + "</span></div>";
     }).join("");
   }
   function loadEqReqs() {
-    return api("cta_equipment_requests?select=*&order=created_at.desc").then(function (rows) {
+    return api("cta_equipment_requests?select=*,cta_end_clients(company_name)&order=created_at.desc").then(function (rows) {
       eqReqs = rows;
       renderEqReqs();
     }).catch(function () { /* non bloquant */ });
@@ -919,26 +1017,61 @@
   loadEqReqs();
   document.getElementById("eqr-form").addEventListener("submit", function (ev) {
     ev.preventDefault();
+    var err = document.getElementById("eqr-err");
+    function fail(t) { err.hidden = false; err.textContent = t; }
+    err.hidden = true;
     var product = document.getElementById("eqr-product").value;
-    if (!product) return;
+    if (!product) { fail("Choisissez l'appareil souhaité."); return; }
     if (product === "__autre") {
       product = (window.prompt("Quel appareil souhaitez-vous emprunter ou louer ?") || "").trim();
       if (!product) return;
     }
-    var body = {
-      partner_id: uid,
-      product_name: product,
-      kind: document.getElementById("eqr-kind").value,
-      duration: document.getElementById("eqr-duration").value || null,
-      start_date: document.getElementById("eqr-date").value || null,
-      message: document.getElementById("eqr-msg").value.trim() || null
-    };
-    api("cta_equipment_requests", { method: "POST", body: body })
+    var kind = document.getElementById("eqr-kind").value;
+    var duration = document.getElementById("eqr-duration").value;
+    if (!duration) { fail("Indiquez la durée souhaitée" + (kind === "pret" ? " (1 semaine maximum pour un prêt)." : ".")); return; }
+    var endChoice = clientType === "distributeur" ? document.getElementById("eqr-endclient").value : "";
+    var ficheReady;
+    if (endChoice === "__new") {
+      var fiche = {
+        distributor_id: uid,
+        company_name: document.getElementById("ern-company").value.trim(),
+        contact_name: document.getElementById("ern-contact").value.trim(),
+        phone: document.getElementById("ern-phone").value.trim(),
+        email: document.getElementById("ern-email").value.trim() || null,
+        address: document.getElementById("ern-address").value.trim(),
+        postal_code: document.getElementById("ern-zip").value.trim(),
+        city: document.getElementById("ern-city").value.trim()
+      };
+      if (!fiche.company_name || !fiche.contact_name || !fiche.phone || !fiche.address || !fiche.postal_code || !fiche.city) {
+        fail("Complétez toute la fiche du client final (société, contact, téléphone, adresse, code postal, ville).");
+        return;
+      }
+      ficheReady = api("cta_end_clients", { method: "POST", prefer: "return=representation", body: fiche })
+        .then(function (rows) { return rows && rows[0] ? rows[0].id : null; });
+    } else {
+      ficheReady = Promise.resolve(endChoice || null);
+    }
+    ficheReady.then(function (endClientId) {
+      var body = {
+        partner_id: uid,
+        end_client_id: endClientId,
+        product_name: product,
+        kind: kind,
+        duration: duration,
+        price_ht: kind === "location" ? (RENTAL_PRICES[duration] != null ? RENTAL_PRICES[duration] : null) : null,
+        start_date: document.getElementById("eqr-date").value || null,
+        message: document.getElementById("eqr-msg").value.trim() || null
+      };
+      return api("cta_equipment_requests", { method: "POST", body: body });
+    })
       .then(function () {
         ev.target.reset();
+        document.getElementById("eqr-newclient").hidden = true;
+        refreshEqrDurations();
+        if (endChoice === "__new" && clientType === "distributeur") loadFiches();
         return loadEqReqs();
       })
-      .catch(function () { showError("Envoi de la demande impossible, réessayez."); });
+      .catch(function () { fail("Envoi de la demande impossible, réessayez."); });
   });
 
   /* ---------- Mise en service à distance : assistant pas à pas ---------- */

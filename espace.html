@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/site.css">
 </head>
-<body>
+<body class="with-bottom-nav">
 
 <div style="min-height:100vh;background:#07090d;overflow-x:hidden;position:relative;">
   <div style="position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:1100px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(47,123,255,.14) 0%,transparent 65%);pointer-events:none;"></div>
@@ -181,25 +181,32 @@
       <p style="margin:0 0 16px;color:#9aa6ba;font-size:14px;">🧰 <strong style="color:#dfe6f2;">Location / Prêt de matériel</strong> : demandez une valise ou un outil de la gamme pour une durée donnée, CTA vous confirme la disponibilité et les conditions.</p>
       <form id="eqr-form" class="panel-card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;padding:22px;margin-bottom:18px;">
         <select id="eqr-product" class="input" required style="grid-column:1 / -1;"><option value="">Quel appareil ? *</option></select>
+        <select id="eqr-endclient" class="input" hidden style="grid-column:1 / -1;"><option value="">Pour qui ? Pour ma société</option></select>
+        <div id="eqr-newclient" hidden style="grid-column:1 / -1;display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:12px;background:rgba(10,13,19,.6);border:1px dashed rgba(120,150,200,.3);">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#7fadff;text-transform:uppercase;">Nouveau client final (fiche complète requise)</span>
+          <input id="ern-company" class="input" placeholder="Nom du garage / société *">
+          <input id="ern-contact" class="input" placeholder="Contact *">
+          <input id="ern-phone" class="input" placeholder="Téléphone *">
+          <input id="ern-email" class="input" type="email" placeholder="E-mail">
+          <input id="ern-address" class="input" placeholder="Adresse (n° et rue) *">
+          <div style="display:flex;gap:10px;">
+            <input id="ern-zip" class="input" placeholder="Code postal *" inputmode="numeric" style="flex:1;">
+            <input id="ern-city" class="input" placeholder="Ville *" style="flex:2;">
+          </div>
+        </div>
         <select id="eqr-kind" class="input">
-          <option value="pret">🤝 Prêt</option>
-          <option value="location">💶 Location</option>
+          <option value="pret">🤝 Prêt (24 h à 1 semaine max)</option>
+          <option value="location">💶 Location (24 h à longue durée)</option>
         </select>
-        <select id="eqr-duration" class="input">
-          <option value="">Durée souhaitée</option>
-          <option>1 jour</option>
-          <option>2-3 jours</option>
-          <option>1 semaine</option>
-          <option>2 semaines</option>
-          <option>1 mois</option>
-          <option>Plus d'un mois</option>
-        </select>
+        <select id="eqr-duration" class="input"><option value="">Durée souhaitée *</option></select>
         <div style="display:flex;flex-direction:column;gap:5px;">
           <label for="eqr-date" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#7fadff;text-transform:uppercase;">Début souhaité</label>
           <input id="eqr-date" class="input" type="date">
         </div>
         <input id="eqr-msg" class="input" placeholder="Précisions (contexte, chantier, urgence…)">
+        <p id="eqr-price" hidden style="grid-column:1 / -1;margin:0;font-size:13px;color:#7fadff;"></p>
         <button type="submit" class="btn-primary" style="padding:13px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;">Envoyer la demande</button>
+        <p id="eqr-err" hidden style="grid-column:1 / -1;margin:0;font-size:13px;color:#ff8c8c;"></p>
       </form>
       <div class="panel-card" style="overflow:hidden;">
         <div style="padding:14px 24px;background:rgba(47,123,255,.08);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8b98ae;">Mes demandes de prêt / location</div>
@@ -262,6 +269,15 @@
   </main>
 </div>
 
+<!-- Menu bas façon application (téléphone) -->
+<nav id="bottom-nav" class="bottom-nav">
+  <button type="button" class="bn-item active" data-bn-tab="interventions"><span class="bn-ico">🛠️</span><span>Interv.</span></button>
+  <button type="button" class="bn-item" data-bn-tab="grille"><span class="bn-ico">💶</span><span>Tarifs</span></button>
+  <button type="button" class="bn-item" data-bn-tab="materiel"><span class="bn-ico">🧰</span><span>Matériel</span></button>
+  <button type="button" class="bn-item" data-bn-tab="messagerie"><span class="bn-ico">💬</span><span>Messages</span></button>
+  <button type="button" class="bn-item" id="bn-profile"><span class="bn-ico">⚙️</span><span>Profil</span></button>
+</nav>
+
 <!-- Demande d'intervention (distributeurs) -->
 <div id="ireq-modal" hidden style="position:fixed;inset:0;z-index:98;background:rgba(4,6,10,.86);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;">
   <div class="panel-card" style="position:relative;overflow:hidden;width:100%;max-width:460px;padding:28px;margin:auto;">
@@ -284,15 +300,15 @@
       <p id="ir-price" hidden style="margin:-4px 0 0;font-size:12.5px;color:#7fadff;"></p>
       <select id="ir-endclient" class="input"><option value="">Chez quel client final ? (optionnel)</option></select>
       <div id="ir-newclient" hidden style="display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:12px;background:rgba(10,13,19,.6);border:1px dashed rgba(120,150,200,.3);">
-        <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#7fadff;text-transform:uppercase;">Nouveau client final</span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#7fadff;text-transform:uppercase;">Nouveau client final (fiche complète requise)</span>
         <input id="irn-company" class="input" placeholder="Nom du garage / société *">
-        <input id="irn-contact" class="input" placeholder="Contact">
-        <input id="irn-phone" class="input" placeholder="Téléphone">
+        <input id="irn-contact" class="input" placeholder="Contact *">
+        <input id="irn-phone" class="input" placeholder="Téléphone *">
         <input id="irn-email" class="input" type="email" placeholder="E-mail">
-        <input id="irn-address" class="input" placeholder="Adresse (n° et rue)">
+        <input id="irn-address" class="input" placeholder="Adresse (n° et rue) *">
         <div style="display:flex;gap:10px;">
-          <input id="irn-zip" class="input" placeholder="Code postal" inputmode="numeric" style="flex:1;">
-          <input id="irn-city" class="input" placeholder="Ville" style="flex:2;">
+          <input id="irn-zip" class="input" placeholder="Code postal *" inputmode="numeric" style="flex:1;">
+          <input id="irn-city" class="input" placeholder="Ville *" style="flex:2;">
         </div>
         <span style="font-size:12px;color:#5f6d84;">La fiche est créée dans « Mes clients » et transmise à CTA avec la demande.</span>
       </div>
