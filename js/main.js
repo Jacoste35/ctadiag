@@ -191,6 +191,32 @@
       .catch(function () { /* hors-ligne : le calendrier reste utilisable */ });
   }
 
+  /* ---------- Chips « Vous êtes » (garage / distributeur) ---------- */
+  var KINDS = [["garage", "🔧 Garage / atelier"], ["distributeur", "📦 Distributeur"]];
+  var kindChipsEl = document.getElementById("kind-chips");
+  state.kind = null;
+  function renderKindChips() {
+    if (!kindChipsEl) return;
+    kindChipsEl.innerHTML = "";
+    KINDS.forEach(function (k) {
+      var on = state.kind === k[0];
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = k[1];
+      b.style.cssText =
+        "padding:9px 16px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Archivo',sans-serif;" +
+        "border:1px solid " + (on ? "#4d8dff" : "rgba(120,150,200,.25)") + ";" +
+        "background:" + (on ? "rgba(47,123,255,.18)" : "transparent") + ";" +
+        "color:" + (on ? "#dfe6f2" : "#8b98ae") + ";";
+      b.addEventListener("click", function () {
+        state.kind = on ? null : k[0];
+        renderKindChips();
+      });
+      kindChipsEl.appendChild(b);
+    });
+  }
+  renderKindChips();
+
   /* ---------- Chips prestations ---------- */
   var PRESTAS = ["Diagnostic Autel", "Station ATF", "Calibration ADAS", "Mise en service à distance", "Autre"];
   var chipsEl = document.getElementById("chips");
@@ -232,6 +258,7 @@
     var body =
       "Société : " + payload.name +
       "\nContact : " + payload.contact +
+      "\nProfil : " + (payload.client_kind === "distributeur" ? "Distributeur" : payload.client_kind === "garage" ? "Garage / atelier" : "non précisé") +
       "\nPrestations : " + payload.services.join(", ") +
       "\nRendez-vous souhaité : " + (payload.rdv_day ? fmtDay(payload.rdv_day) + (payload.rdv_slot ? " à " + payload.rdv_slot : "") : "aucun créneau sélectionné") +
       "\n\n" + payload.message;
@@ -252,10 +279,15 @@
         rdv_slot: state.rdvSlot,
         message: document.getElementById("f-msg").value.trim(),
         consent: document.getElementById("f-consent").checked,
-        website: document.getElementById("f-website").value
+        website: document.getElementById("f-website").value,
+        client_kind: state.kind
       };
       if (!payload.name || !payload.contact) {
         setStatus("Merci d'indiquer votre nom / société et un moyen de contact.", true);
+        return;
+      }
+      if (!payload.client_kind) {
+        setStatus("Merci d'indiquer si vous êtes un garage / atelier ou un distributeur : nous préparons l'accès qui vous convient.", true);
         return;
       }
       if (!payload.consent) {
@@ -287,7 +319,9 @@
           setStatus("Merci ! Votre demande est bien enregistrée, nous revenons vers vous sous 24 h ouvrées.");
           quoteForm.reset();
           state.picked = {};
+          state.kind = null;
           renderChips();
+          renderKindChips();
         })
         .catch(function () {
           submitBtn.textContent = "Envoyer la demande de devis";

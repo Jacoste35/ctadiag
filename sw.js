@@ -3,13 +3,14 @@
    arrivent immédiatement quand on est en ligne, le cache sert de secours hors
    ligne) ; cache d'abord pour les images. Les appels au backend (autre origine)
    ne sont jamais interceptés. */
-var CACHE = "cta-app-v1";
+var CACHE = "cta-app-v2";
 var PRECACHE = [
   "./",
   "./index.html",
   "./connexion.html",
   "./espace.html",
   "./admin.html",
+  "./messagerie.html",
   "./mentions-legales.html",
   "./css/site.css",
   "./js/config.js",
@@ -17,6 +18,7 @@ var PRECACHE = [
   "./js/login.js",
   "./js/espace.js",
   "./js/admin.js",
+  "./js/messagerie.js",
   "./js/pwa.js",
   "./manifest.webmanifest",
   "./assets/logo-cta-transparent.png",

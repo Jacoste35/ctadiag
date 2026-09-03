@@ -52,7 +52,7 @@
         <div id="stat-interv" style="font-size:28px;font-weight:900;background:linear-gradient(90deg,#c9d4e6,#4d8dff);-webkit-background-clip:text;background-clip:text;color:transparent;">…</div>
         <div style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.14em;color:#4d8dff;text-transform:uppercase;">Interventions à venir</div>
       </div>
-      <div class="panel-card" style="position:relative;overflow:hidden;padding:22px 24px;">
+      <div class="panel-card" id="stat-devis-tile" style="position:relative;overflow:hidden;padding:22px 24px;">
         <div style="position:absolute;top:-1px;left:20px;right:55%;height:2px;background:linear-gradient(90deg,#2f7bff,transparent);"></div>
         <div id="stat-devis" style="font-size:28px;font-weight:900;background:linear-gradient(90deg,#c9d4e6,#4d8dff);-webkit-background-clip:text;background-clip:text;color:transparent;">…</div>
         <div style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.14em;color:#4d8dff;text-transform:uppercase;">Devis en attente</div>
@@ -69,7 +69,7 @@
     <!-- Onglets -->
     <div class="tabs-row" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:26px;">
       <button class="tab active" data-tab="interventions">Interventions</button>
-      <button class="tab" data-tab="documents">Devis &amp; factures</button>
+      <button class="tab" data-tab="documents" id="tab-btn-documents">Devis &amp; factures</button>
       <button class="tab" data-tab="grille">Grille distributeur</button>
       <button class="tab" data-tab="clients" id="tab-btn-clients" hidden>Mes clients</button>
       <button class="tab" data-tab="messagerie">Messagerie</button>
@@ -111,6 +111,15 @@
           <span id="grid-col-partner" style="text-align:right;color:#7fadff;">Votre tarif</span>
         </div>
         <div id="grid-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
+      </div>
+      <div id="prod-wrap" hidden class="panel-card" style="overflow:hidden;margin-top:18px;">
+        <div style="padding:14px 24px;background:rgba(47,123,255,.08);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8b98ae;">🧰 Catalogue valises de diagnostic</div>
+        <div class="price-head" style="display:grid;grid-template-columns:1fr 140px 140px;gap:10px;padding:14px 24px;background:rgba(10,13,19,.5);font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:#8b98ae;">
+          <span>Désignation · référence</span>
+          <span style="text-align:right;">Tarif public conseillé</span>
+          <span style="text-align:right;color:#7fadff;">Votre prix net</span>
+        </div>
+        <div id="prod-list"></div>
       </div>
       <p id="grid-note" style="margin:14px 4px 0;font-size:12.5px;color:#5f6d84;">Tarifs HT, hors frais de déplacement. Grille personnelle et confidentielle ; devis groupé possible pour interventions multiples.</p>
     </section>
@@ -197,7 +206,17 @@
         <option value="distance">Mise en service à distance</option>
         <option value="autre">Autre</option>
       </select>
+      <p id="ir-price" hidden style="margin:-4px 0 0;font-size:12.5px;color:#7fadff;"></p>
       <select id="ir-endclient" class="input"><option value="">Chez quel client final ? (optionnel)</option></select>
+      <div id="ir-newclient" hidden style="display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:12px;background:rgba(10,13,19,.6);border:1px dashed rgba(120,150,200,.3);">
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#7fadff;text-transform:uppercase;">Nouveau client final</span>
+        <input id="irn-company" class="input" placeholder="Nom du garage / société *">
+        <input id="irn-contact" class="input" placeholder="Contact">
+        <input id="irn-phone" class="input" placeholder="Téléphone">
+        <input id="irn-email" class="input" type="email" placeholder="E-mail">
+        <input id="irn-address" class="input" placeholder="Adresse postale">
+        <span style="font-size:12px;color:#5f6d84;">La fiche est créée dans « Mes clients » et transmise à CTA avec la demande.</span>
+      </div>
       <div style="display:flex;flex-direction:column;gap:5px;">
         <label for="ir-date" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#7fadff;text-transform:uppercase;">Date souhaitée</label>
         <input id="ir-date" class="input" type="date">

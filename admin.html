@@ -30,7 +30,8 @@
       <span class="app-label" style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.16em;color:#38d47a;text-transform:uppercase;">Administration</span>
     </a>
     <div style="display:flex;align-items:center;gap:12px;">
-      <a href="espace.html" class="btn-ghost" style="padding:9px 18px;border-radius:999px;border:1px solid rgba(150,180,230,.3);color:#dfe6f2;font-weight:700;font-size:13px;">Vue client</a>
+      <a href="messagerie.html" class="btn-ghost" style="padding:9px 18px;border-radius:999px;border:1px solid rgba(77,141,255,.4);color:#7fadff;font-weight:700;font-size:13px;">💬 Messagerie</a>
+      <a href="espace.html" class="btn-ghost hide-mobile" style="padding:9px 18px;border-radius:999px;border:1px solid rgba(150,180,230,.3);color:#dfe6f2;font-weight:700;font-size:13px;">Vue client</a>
       <button id="logout" class="btn-ghost" style="padding:9px 18px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:13px;cursor:pointer;">Se déconnecter</button>
     </div>
   </header>
@@ -39,7 +40,7 @@
 
     <div style="margin-bottom:30px;">
       <h1 style="margin:0 0 8px;font-size:clamp(24px,3.4vw,34px);font-weight:900;">Pilotage <span style="background:linear-gradient(90deg,#c9d4e6,#4d8dff);-webkit-background-clip:text;background-clip:text;color:transparent;">CTA</span></h1>
-      <p style="margin:0;color:#9aa6ba;font-size:15px;">Demandes de devis, clients, interventions, facturation, tarifs, messagerie et agenda : tout se gère ici.</p>
+      <p style="margin:0;color:#9aa6ba;font-size:15px;">Demandes de devis, clients, interventions, tarifs, matériel et agenda : tout se gère ici. La messagerie a son espace dédié, la facturation passe par votre site bancaire.</p>
     </div>
 
     <!-- Planning du jour -->
@@ -66,11 +67,10 @@
       <div id="week-list"><p style="margin:0;color:#5f6d84;font-size:14px;">Chargement…</p></div>
     </div>
 
-    <div class="stat-tiles" style="grid-template-columns:repeat(4,1fr);margin-bottom:34px;">
+    <div class="stat-tiles" style="grid-template-columns:repeat(3,1fr);margin-bottom:34px;">
       <div class="panel-card" style="position:relative;overflow:hidden;padding:20px 22px;"><div style="position:absolute;top:-1px;left:20px;right:55%;height:2px;background:linear-gradient(90deg,#2f7bff,transparent);"></div><div id="stat-quotes" style="font-size:26px;font-weight:900;background:linear-gradient(90deg,#c9d4e6,#4d8dff);-webkit-background-clip:text;background-clip:text;color:transparent;">…</div><div style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;color:#4d8dff;text-transform:uppercase;">Demandes à traiter</div></div>
       <div class="panel-card" style="position:relative;overflow:hidden;padding:20px 22px;"><div style="position:absolute;top:-1px;left:20px;right:55%;height:2px;background:linear-gradient(90deg,#2f7bff,transparent);"></div><div id="stat-tickets" style="font-size:26px;font-weight:900;background:linear-gradient(90deg,#c9d4e6,#4d8dff);-webkit-background-clip:text;background-clip:text;color:transparent;">…</div><div style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;color:#4d8dff;text-transform:uppercase;">Tickets ouverts</div></div>
       <div class="panel-card" style="position:relative;overflow:hidden;padding:20px 22px;"><div style="position:absolute;top:-1px;left:20px;right:55%;height:2px;background:linear-gradient(90deg,#2f7bff,transparent);"></div><div id="stat-interv" style="font-size:26px;font-weight:900;background:linear-gradient(90deg,#c9d4e6,#4d8dff);-webkit-background-clip:text;background-clip:text;color:transparent;">…</div><div style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;color:#4d8dff;text-transform:uppercase;">Interventions à venir</div></div>
-      <div class="panel-card" style="position:relative;overflow:hidden;padding:20px 22px;"><div style="position:absolute;top:-1px;left:20px;right:55%;height:2px;background:linear-gradient(90deg,#2f7bff,transparent);"></div><div id="stat-invoices" style="font-size:26px;font-weight:900;background:linear-gradient(90deg,#c9d4e6,#4d8dff);-webkit-background-clip:text;background-clip:text;color:transparent;">…</div><div style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;color:#4d8dff;text-transform:uppercase;">Factures à encaisser</div></div>
     </div>
 
     <!-- Chiffre d'affaires -->
@@ -103,18 +103,22 @@
       <button class="tab active" data-tab="demandes">Demandes de devis</button>
       <button class="tab" data-tab="clients">Clients</button>
       <button class="tab" data-tab="interventions">Interventions</button>
-      <button class="tab" data-tab="documents">Devis &amp; factures</button>
       <button class="tab" data-tab="grille">Tarifs</button>
       <button class="tab" data-tab="materiel">Matériel</button>
-      <button class="tab" data-tab="tickets">Messagerie</button>
+      <a class="tab" href="messagerie.html" style="text-decoration:none;display:inline-flex;align-items:center;">💬 Messagerie ↗</a>
       <button class="tab" data-tab="agenda">Agenda</button>
     </div>
 
     <!-- Demandes de devis -->
     <section id="tab-demandes">
+      <p style="margin:0 0 16px;color:#9aa6ba;font-size:14px;">Chaque demandeur indique s'il est <strong style="color:#7fadff;">garage / atelier</strong> ou <strong style="color:#38d47a;">distributeur</strong> : créez-lui l'accès qui convient en un clic depuis sa demande.</p>
+      <div class="panel-card" style="overflow:hidden;margin-bottom:20px;">
+        <div style="padding:16px 24px;background:rgba(47,123,255,.08);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#7fadff;">🔧 Garages et ateliers (clients directs)</div>
+        <div id="quotes-list-garage"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
+      </div>
       <div class="panel-card" style="overflow:hidden;">
-        <div style="padding:16px 24px;background:rgba(47,123,255,.08);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8b98ae;">Demandes reçues via le site</div>
-        <div id="quotes-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
+        <div style="padding:16px 24px;background:rgba(56,212,122,.08);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#38d47a;">📦 Distributeurs</div>
+        <div id="quotes-list-distrib"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
       </div>
     </section>
 
@@ -181,26 +185,6 @@
       <p style="margin:14px 4px 0;font-size:12.5px;color:#5f6d84;line-height:1.6;">📧 Rappels automatiques par e-mail au client : J-7, 72 h avant, 24 h avant (dernier délai d'annulation sans frais) et le jour J (annonce du passage du technicien), avec la politique « non décommandé 24 h avant = réalisé et facturé ». Envoi chaque matin vers 7 h ; historique dans la table cta_reminders.</p>
     </section>
 
-    <!-- Devis & factures -->
-    <section id="tab-documents" hidden>
-      <form id="doc-form" class="panel-card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;padding:22px;margin-bottom:18px;">
-        <select id="dc-client" class="input" required></select>
-        <select id="dc-kind" class="input"><option value="devis">Devis</option><option value="facture">Facture</option></select>
-        <input id="dc-ref" class="input" placeholder="Référence *" required>
-        <input id="dc-label" class="input" placeholder="Libellé">
-        <input id="dc-amount" class="input" type="number" step="0.01" min="0" placeholder="Montant HT">
-        <div style="display:flex;flex-direction:column;gap:5px;">
-          <label for="dc-date" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#7fadff;text-transform:uppercase;">Date d'émission</label>
-          <input id="dc-date" class="input" type="date">
-        </div>
-        <input id="dc-url" class="input" type="url" placeholder="Lien PDF (optionnel)">
-        <button type="submit" class="btn-primary" style="padding:13px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;">+ Ajouter</button>
-      </form>
-      <div class="panel-card" style="overflow:hidden;">
-        <div id="ad-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
-      </div>
-    </section>
-
     <!-- Tarifs -->
     <section id="tab-grille" hidden>
       <p style="margin:0 0 16px;color:#9aa6ba;font-size:14px;">« Tarif public » = affiché aux clients directs · « Tarif distributeur » = affiché aux distributeurs connectés. La grille publique du site vitrine reste indépendante (fichier <code style="color:#7fadff;">index.html</code>).</p>
@@ -227,38 +211,17 @@
       <div class="panel-card" style="overflow:hidden;">
         <div id="eq-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
       </div>
-    </section>
-
-    <!-- Messagerie -->
-    <section id="tab-tickets" hidden>
-      <div class="cols-tickets">
-        <div id="at-list" style="display:flex;flex-direction:column;gap:10px;">
-          <p style="margin:0;padding:6px;color:#5f6d84;font-size:14px;">Chargement…</p>
+      <div class="panel-card" style="overflow:hidden;margin-top:22px;">
+        <div style="padding:14px 24px;background:rgba(47,123,255,.08);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8b98ae;">💶 Catalogue valises · tarif 2026</div>
+        <div class="price-head prodadmin-head" style="display:grid;grid-template-columns:1fr 120px 120px 120px;gap:10px;padding:14px 24px;background:rgba(10,13,19,.5);font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#8b98ae;">
+          <span>Désignation · référence</span>
+          <span style="text-align:right;">Public conseillé</span>
+          <span style="text-align:right;color:#38d47a;">Net distributeur</span>
+          <span style="text-align:right;color:#7fadff;">Mon prix net</span>
         </div>
-        <div class="panel-card" style="padding:24px;min-height:320px;display:flex;flex-direction:column;">
-          <p id="at-empty" style="margin:auto;color:#5f6d84;font-size:14px;text-align:center;">Sélectionnez un ticket.</p>
-          <div id="at-view" hidden style="display:flex;flex-direction:column;flex:1;gap:16px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid rgba(120,150,200,.12);">
-              <div>
-                <div id="at-subject" style="font-weight:800;font-size:16.5px;"></div>
-                <div id="at-meta" style="margin-top:3px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#5f6d84;"></div>
-              </div>
-              <button id="at-archive" hidden type="button" class="btn-ghost" style="padding:8px 14px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#8b98ae;font-weight:700;font-size:12px;cursor:pointer;">Archiver</button>
-              <select id="at-status" class="input" style="padding:9px 14px;width:auto;">
-                <option value="ouvert">Ouvert</option>
-                <option value="en_cours">En cours</option>
-                <option value="resolu">Résolu</option>
-                <option value="ferme">Fermé</option>
-              </select>
-            </div>
-            <div id="at-msgs" style="display:flex;flex-direction:column;gap:12px;flex:1;"></div>
-            <form id="at-reply" class="reply-form" style="display:flex;gap:10px;align-items:flex-end;">
-              <textarea id="at-body" class="input" rows="2" maxlength="5000" placeholder="Répondre en tant que CTA…" required style="flex:1;resize:vertical;"></textarea>
-              <button type="submit" class="btn-primary" style="padding:13px 22px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;">Envoyer</button>
-            </form>
-          </div>
-        </div>
+        <div id="prodadmin-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
       </div>
+      <p style="margin:14px 4px 0;font-size:12.5px;color:#5f6d84;">« Mon prix net » est votre prix d'achat : il n'est visible que de vous (les distributeurs ne voient que le tarif public conseillé et leur prix net). Renseignez-le pour suivre vos marges.</p>
     </section>
 
     <!-- Agenda -->

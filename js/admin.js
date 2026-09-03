@@ -187,21 +187,26 @@
   /* ---------- Onglets ---------- */
   var tabs = document.querySelectorAll(".tab");
   tabs.forEach(function (t) {
+    if (!t.dataset.tab) return; // lien (messagerie dédiée)
     t.addEventListener("click", function () {
       tabs.forEach(function (x) { x.classList.toggle("active", x === t); });
-      ["demandes", "clients", "interventions", "documents", "grille", "materiel", "tickets", "agenda"].forEach(function (name) {
+      ["demandes", "clients", "interventions", "grille", "materiel", "agenda"].forEach(function (name) {
         document.getElementById("tab-" + name).hidden = name !== t.dataset.tab;
       });
     });
   });
+  function showTab(name) {
+    tabs.forEach(function (x) { x.classList.toggle("active", x.dataset.tab === name); });
+    ["demandes", "clients", "interventions", "grille", "materiel", "agenda"].forEach(function (n) {
+      document.getElementById("tab-" + n).hidden = n !== name;
+    });
+  }
 
   /* ---------- Données ---------- */
-  var clients = [], quotes = [], interventions = [], documents = [], grid = [], tickets = [], blockedDates = [], equipment = [], endClients = [], iReqs = [];
+  var clients = [], quotes = [], interventions = [], grid = [], tickets = [], blockedDates = [], equipment = [], endClients = [], iReqs = [], products = [];
   var catFilter = "";
   var pendingRequestId = null;
   var showArchivedIv = false;
-  var currentTicket = null;
-  var showArchived = false;
 
   function clientName(id) {
     var c = clients.find(function (x) { return x.id === id; });
@@ -357,7 +362,6 @@
       iReqs.filter(function (r) { return r.status === "nouvelle"; }).length;
     document.getElementById("stat-tickets").textContent = tickets.filter(function (t) { return t.status === "ouvert" || t.status === "en_cours"; }).length;
     document.getElementById("stat-interv").textContent = interventions.filter(function (i) { return i.status === "planifiee" || i.status === "en_cours"; }).length;
-    document.getElementById("stat-invoices").textContent = documents.filter(function (d) { return d.kind === "facture" && d.status === "a_regler"; }).length;
   }
 
   function loadAll() {
@@ -365,75 +369,92 @@
       api("cta_partners?select=*&order=created_at.asc"),
       api("quote_requests?select=*&order=created_at.desc"),
       api("cta_interventions?select=*,cta_end_clients(company_name)&order=date.desc"),
-      api("cta_documents?select=*&order=issued_on.desc"),
       api("cta_price_grid?select=*&order=sort.asc"),
-      api("cta_tickets?select=*,cta_ticket_messages(*)&order=updated_at.desc"),
+      api("cta_tickets?select=id,status&order=updated_at.desc"),
       api("blocked_dates?select=*&order=day.asc"),
       api("cta_equipment?select=*&order=name.asc"),
       api("cta_end_clients?select=*&order=company_name.asc"),
-      api("cta_intervention_requests?select=*,cta_end_clients(company_name,address)&order=created_at.desc")
+      api("cta_intervention_requests?select=*,cta_end_clients(company_name,address)&order=created_at.desc"),
+      api("cta_products?select=*,cta_product_admin_costs(admin_price_ht)&order=sort.asc")
     ]).then(function (res) {
       clients = res[0]; quotes = res[1]; interventions = res[2];
-      documents = res[3]; grid = res[4]; tickets = res[5]; blockedDates = res[6];
-      equipment = res[7]; endClients = res[8]; iReqs = res[9];
-      if (!currentTicket) {
-        var activePool = tickets.filter(function (t) { return !t.archived; });
-        if (activePool.length) currentTicket = activePool[0].id;
-      }
+      grid = res[3]; tickets = res[4]; blockedDates = res[5];
+      equipment = res[6]; endClients = res[7]; iReqs = res[8]; products = res[9];
       refreshStats(); renderToday(); renderWeek(); renderCA();
       renderQuotes(); renderClients(); renderClientSelects();
-      renderInterventions(); renderDocuments(); renderGrid();
-      renderTicketList(); renderThread(); renderBlocked();
-      renderEquipment(); renderIntervFormOptions();
+      renderInterventions(); renderGrid(); renderBlocked();
+      renderEquipment(); renderIntervFormOptions(); renderProductsAdmin();
       renderIReqs(); renderCatFilter(); renderEndClientsAdmin();
     }).catch(function () {
       showError("Chargement impossible : vérifiez votre connexion ou reconnectez-vous.");
     });
   }
 
-  /* ---------- Demandes de devis ---------- */
+  /* ---------- Demandes de devis (deux tableaux : garages / distributeurs) ---------- */
+  function quoteRow(q) {
+    var services = (q.services || []).map(function (s) {
+      return '<span class="badge badge-grey">' + esc(s) + "</span>";
+    }).join(" ");
+    return '<div class="list-row" style="align-items:flex-start;">' +
+      '<div style="flex:1;min-width:260px;">' +
+      '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><span style="font-weight:800;font-size:15px;">' + esc(q.name) + "</span>" + badge(q.status) +
+      (!q.client_kind ? ' <span class="badge badge-grey">type non précisé</span>' : "") + "</div>" +
+      '<div style="margin-top:4px;font-size:13px;color:#7fadff;">' + esc(q.contact) + "</div>" +
+      (services ? '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">' + services + "</div>" : "") +
+      (q.rdv_day ? '<div style="margin-top:8px;font-size:13px;color:#c9d4e6;">📅 RDV souhaité : <strong>' + esc(fmtDate(q.rdv_day)) + (q.rdv_slot ? " à " + esc(q.rdv_slot) : "") + "</strong></div>" : "") +
+      (q.message ? '<div style="margin-top:8px;font-size:13px;color:#93a0b5;line-height:1.55;">' + esc(q.message).replace(/\n/g, "<br>") + "</div>" : "") +
+      '<div style="margin-top:6px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#5f6d84;">Reçue le ' + esc(fmtDateTime(q.created_at)) + "</div>" +
+      "</div>" +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+      '<button class="btn-primary" data-quote-access="' + q.id + '" style="padding:8px 16px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:12px;cursor:pointer;">Créer l\'accès →</button>' +
+      (q.status === "new"
+        ? '<button ' + GHOST_BTN + ' data-quote-done="' + q.id + '">✓ Marquer traitée</button>'
+        : '<button ' + GHOST_BTN + ' data-quote-reopen="' + q.id + '">Rouvrir</button>') +
+      '<button ' + DANGER_BTN + ' data-quote-del="' + q.id + '">Supprimer</button>' +
+      "</div></div>";
+  }
   function renderQuotes() {
-    var host = document.getElementById("quotes-list");
-    if (!quotes.length) {
-      host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Aucune demande pour le moment.</p>';
-      return;
-    }
-    host.innerHTML = quotes.map(function (q) {
-      var services = (q.services || []).map(function (s) {
-        return '<span class="badge badge-grey">' + esc(s) + "</span>";
-      }).join(" ");
-      return '<div class="list-row" style="align-items:flex-start;">' +
-        '<div style="flex:1;min-width:260px;">' +
-        '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><span style="font-weight:800;font-size:15px;">' + esc(q.name) + "</span>" + badge(q.status) + "</div>" +
-        '<div style="margin-top:4px;font-size:13px;color:#7fadff;">' + esc(q.contact) + "</div>" +
-        (services ? '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">' + services + "</div>" : "") +
-        (q.rdv_day ? '<div style="margin-top:8px;font-size:13px;color:#c9d4e6;">📅 RDV souhaité : <strong>' + esc(fmtDate(q.rdv_day)) + (q.rdv_slot ? " à " + esc(q.rdv_slot) : "") + "</strong></div>" : "") +
-        (q.message ? '<div style="margin-top:8px;font-size:13px;color:#93a0b5;line-height:1.55;">' + esc(q.message).replace(/\n/g, "<br>") + "</div>" : "") +
-        '<div style="margin-top:6px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#5f6d84;">Reçue le ' + esc(fmtDateTime(q.created_at)) + "</div>" +
-        "</div>" +
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-        (q.status === "new"
-          ? '<button ' + GHOST_BTN + ' data-quote-done="' + q.id + '">✓ Marquer traitée</button>'
-          : '<button ' + GHOST_BTN + ' data-quote-reopen="' + q.id + '">Rouvrir</button>') +
-        '<button ' + DANGER_BTN + ' data-quote-del="' + q.id + '">Supprimer</button>' +
-        "</div></div>";
-    }).join("");
-    host.querySelectorAll("[data-quote-done]").forEach(function (b) {
-      b.addEventListener("click", function () { setQuoteStatus(b.dataset.quoteDone, "traite"); });
-    });
-    host.querySelectorAll("[data-quote-reopen]").forEach(function (b) {
-      b.addEventListener("click", function () { setQuoteStatus(b.dataset.quoteReopen, "new"); });
-    });
-    host.querySelectorAll("[data-quote-del]").forEach(function (b) {
-      b.addEventListener("click", function () {
-        if (!window.confirm("Supprimer définitivement cette demande ?")) return;
-        api("quote_requests?id=eq." + b.dataset.quoteDel, { method: "DELETE" })
-          .then(function () {
-            quotes = quotes.filter(function (q) { return q.id !== b.dataset.quoteDel; });
-            refreshStats(); renderQuotes();
-          }).catch(function () { showError("Suppression impossible."); });
+    var hostG = document.getElementById("quotes-list-garage");
+    var hostD = document.getElementById("quotes-list-distrib");
+    var garages = quotes.filter(function (q) { return q.client_kind !== "distributeur"; });
+    var distribs = quotes.filter(function (q) { return q.client_kind === "distributeur"; });
+    hostG.innerHTML = garages.length ? garages.map(quoteRow).join("")
+      : '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Aucune demande de garage pour le moment.</p>';
+    hostD.innerHTML = distribs.length ? distribs.map(quoteRow).join("")
+      : '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Aucune demande de distributeur pour le moment.</p>';
+    [hostG, hostD].forEach(function (host) {
+      host.querySelectorAll("[data-quote-access]").forEach(function (b) {
+        b.addEventListener("click", function () { openClientFormFromQuote(b.dataset.quoteAccess); });
+      });
+      host.querySelectorAll("[data-quote-done]").forEach(function (b) {
+        b.addEventListener("click", function () { setQuoteStatus(b.dataset.quoteDone, "traite"); });
+      });
+      host.querySelectorAll("[data-quote-reopen]").forEach(function (b) {
+        b.addEventListener("click", function () { setQuoteStatus(b.dataset.quoteReopen, "new"); });
+      });
+      host.querySelectorAll("[data-quote-del]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          if (!window.confirm("Supprimer définitivement cette demande ?")) return;
+          api("quote_requests?id=eq." + b.dataset.quoteDel, { method: "DELETE" })
+            .then(function () {
+              quotes = quotes.filter(function (q) { return q.id !== b.dataset.quoteDel; });
+              refreshStats(); renderQuotes();
+            }).catch(function () { showError("Suppression impossible."); });
+        });
       });
     });
+  }
+  // Depuis une demande : ouvre le formulaire client prérempli avec le bon type d'accès
+  function openClientFormFromQuote(id) {
+    var q = quotes.find(function (x) { return x.id === id; });
+    if (!q) return;
+    showTab("clients");
+    clientForm.hidden = false;
+    document.getElementById("c-email").value = /\S+@\S+\.\S+/.test(q.contact) ? q.contact : "";
+    document.getElementById("c-company").value = q.name || "";
+    document.getElementById("c-type").value = q.client_kind === "distributeur" ? "distributeur" : "direct";
+    clientForm.scrollIntoView({ behavior: "smooth", block: "center" });
+    document.getElementById("c-email").focus();
   }
   function setQuoteStatus(id, status) {
     api("quote_requests?id=eq." + id, { method: "PATCH", body: { status: status } })
@@ -510,7 +531,6 @@
       return '<option value="' + c.id + '">' + esc(c.company_name || c.email) + "</option>";
     }).join("");
     document.getElementById("iv-client").innerHTML = '<option value="">Choisir un client</option>' + opts;
-    document.getElementById("dc-client").innerHTML = '<option value="">Choisir un client</option>' + opts;
   }
 
   var clientForm = document.getElementById("client-form");
@@ -752,6 +772,13 @@
   });
 
   /* ---------- Demandes d'intervention des distributeurs ---------- */
+  // Prix distributeur de la grille pour une catégorie (le plus bas si plusieurs lignes)
+  function distribPriceFor(cat) {
+    var prices = grid
+      .filter(function (g) { return g.category === cat && g.partner_price_ht != null; })
+      .map(function (g) { return Number(g.partner_price_ht); });
+    return prices.length ? { min: Math.min.apply(null, prices), several: prices.length > 1 } : null;
+  }
   function renderIReqs() {
     var panel = document.getElementById("ireq-panel");
     var pending = iReqs.filter(function (r) { return r.status === "nouvelle"; });
@@ -768,6 +795,12 @@
          r.equipment ? "🧰 " + r.equipment : "",
          r.location ? "📍 " + r.location : ""].filter(Boolean).map(esc).join(" · ") + "</div>" +
         (r.message ? '<div style="margin-top:3px;font-size:12.5px;color:#8b98ae;">💬 ' + esc(r.message) + "</div>" : "") +
+        (function () {
+          var p = distribPriceFor(r.category);
+          return p
+            ? '<div style="margin-top:3px;font-size:12.5px;color:#38d47a;">💶 À facturer au distributeur : ' + (p.several ? "à partir de " : "") + esc(eur(p.min)) + " HT (grille)</div>"
+            : "";
+        })() +
         '<div style="margin-top:3px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#5f6d84;">Reçue le ' + esc(fmtDateTime(r.created_at)) + "</div></div>" +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
         '<button class="btn-primary" data-ireq-plan="' + r.id + '" style="padding:8px 16px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:12px;cursor:pointer;">Planifier →</button>' +
@@ -821,6 +854,11 @@
     loc.value = r.location || (fiche && fiche.address) || (partner && partner.address) || "";
     loc.dataset.auto = "0";
     document.getElementById("iv-notes").value = r.message || "";
+    var p = distribPriceFor(r.category);
+    if (p && document.getElementById("iv-amount").value === "") {
+      document.getElementById("iv-amount").value = p.min;
+    }
+    showTab("interventions");
     document.getElementById("interv-form").scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
@@ -866,78 +904,6 @@
       });
     });
   }
-
-  /* ---------- Devis & factures ---------- */
-  function renderDocuments() {
-    var host = document.getElementById("ad-list");
-    if (!documents.length) {
-      host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Aucun document.</p>';
-      return;
-    }
-    host.innerHTML = documents.map(function (r) {
-      var statuses = r.kind === "devis" ? ["en_attente", "accepte", "refuse"] : ["a_regler", "payee"];
-      return '<div class="list-row" data-doc-row="' + r.id + '">' +
-        '<span class="badge ' + (r.kind === "devis" ? "badge-blue" : "badge-grey") + '">' + (r.kind === "devis" ? "Devis" : "Facture") + "</span>" +
-        '<div style="flex:1;min-width:220px;">' +
-        '<div style="font-weight:800;font-size:14.5px;">' + esc(r.reference) + ' <span style="font-weight:600;color:#7fadff;">· ' + esc(clientName(r.partner_id)) + "</span></div>" +
-        '<div style="margin-top:3px;font-size:12.5px;color:#93a0b5;">' + esc(r.label || "") + " · émis le " + esc(fmtDate(r.issued_on)) + "</div></div>" +
-        '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:14px;color:#fff;min-width:90px;text-align:right;">' + esc(eur(r.amount_ht)) + " HT</div>" +
-        statusSelect(r.status, statuses, "doc-status") +
-        '<button ' + DANGER_BTN + ' data-doc-del="' + r.id + '">✕</button>' +
-        (r.signed_at
-          ? '<div style="flex-basis:100%;margin-top:2px;font-size:12px;color:' + (r.status === "refuse" ? "#8b98ae" : "#38d47a") + ';">✍️ ' +
-            (r.status === "refuse" ? "Refusé" : "Signé électroniquement") + " le " + esc(fmtDateTime(r.signed_at)) +
-            (r.signed_name ? " par " + esc(r.signed_name) : "") +
-            (r.refusal_reason ? " · motif : " + esc(r.refusal_reason) : "") +
-            (r.signature_hash ? ' · <span style="font-family:\'IBM Plex Mono\',monospace;color:#5f6d84;" title="Empreinte SHA-256 du dossier de preuve">' + esc(r.signature_hash.slice(0, 16)) + "…</span>" : "") +
-            "</div>"
-          : "") +
-        "</div>";
-    }).join("");
-    host.querySelectorAll(".doc-status").forEach(function (sel) {
-      sel.addEventListener("change", function () {
-        var id = sel.closest("[data-doc-row]").dataset.docRow;
-        api("cta_documents?id=eq." + id, { method: "PATCH", body: { status: sel.value } })
-          .then(function () {
-            documents.find(function (x) { return x.id === id; }).status = sel.value;
-            refreshStats();
-          }).catch(function () { showError("Mise à jour impossible."); });
-      });
-    });
-    host.querySelectorAll("[data-doc-del]").forEach(function (b) {
-      b.addEventListener("click", function () {
-        if (!window.confirm("Supprimer ce document ?")) return;
-        api("cta_documents?id=eq." + b.dataset.docDel, { method: "DELETE" })
-          .then(function () {
-            documents = documents.filter(function (x) { return x.id !== b.dataset.docDel; });
-            refreshStats(); renderDocuments();
-          }).catch(function () { showError("Suppression impossible."); });
-      });
-    });
-  }
-  document.getElementById("doc-form").addEventListener("submit", function (ev) {
-    ev.preventDefault();
-    var kind = document.getElementById("dc-kind").value;
-    var amount = document.getElementById("dc-amount").value;
-    var body = {
-      partner_id: document.getElementById("dc-client").value,
-      kind: kind,
-      reference: document.getElementById("dc-ref").value.trim(),
-      label: document.getElementById("dc-label").value.trim() || null,
-      amount_ht: amount === "" ? null : Number(amount),
-      status: kind === "devis" ? "en_attente" : "a_regler",
-      issued_on: document.getElementById("dc-date").value || undefined,
-      file_url: document.getElementById("dc-url").value.trim() || null
-    };
-    if (!body.partner_id || !body.reference) return;
-    api("cta_documents", { method: "POST", body: body })
-      .then(function () {
-        ev.target.reset();
-        return api("cta_documents?select=*&order=issued_on.desc");
-      })
-      .then(function (rows) { documents = rows; refreshStats(); renderDocuments(); })
-      .catch(function () { showError("Création impossible."); });
-  });
 
   /* ---------- Grille tarifaire ---------- */
   function renderGrid() {
@@ -996,116 +962,6 @@
       })
       .then(function (rows) { grid = rows; renderGrid(); })
       .catch(function () { showError("Ajout impossible."); });
-  });
-
-  /* ---------- Messagerie ---------- */
-  function renderTicketList() {
-    var host = document.getElementById("at-list");
-    var visible = tickets.filter(function (t) { return showArchived ? t.archived : !t.archived; });
-    var archivedCount = tickets.filter(function (t) { return t.archived; }).length;
-    var toggle = archivedCount
-      ? '<button type="button" id="at-toggle-archived" style="margin-top:4px;padding:9px 14px;border-radius:999px;border:1px dashed rgba(120,150,200,.3);background:transparent;color:#8b98ae;font-weight:700;font-size:12.5px;cursor:pointer;font-family:\'Archivo\',sans-serif;">' +
-        (showArchived ? "← Retour aux tickets actifs" : "🗄️ Voir les archives (" + archivedCount + ")") + "</button>"
-      : "";
-    if (!visible.length) {
-      host.innerHTML = '<p style="margin:0;padding:6px;color:#5f6d84;font-size:14px;">' +
-        (showArchived ? "Aucun ticket archivé." : "Aucun ticket.") + "</p>" + toggle;
-      bindAtToggle(host);
-      return;
-    }
-    host.innerHTML = visible.map(function (t) {
-      return '<button type="button" class="ticket-item' + (currentTicket === t.id ? " active" : "") + '" data-id="' + t.id + '">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">' +
-        '<span style="font-weight:800;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(t.subject) + "</span>" + badge(t.status) + "</div>" +
-        '<div style="margin-top:5px;font-family:\'IBM Plex Mono\',monospace;font-size:11.5px;color:#5f6d84;">' + esc(clientName(t.partner_id)) + " · " + esc(fmtDateTime(t.updated_at)) + "</div>" +
-        "</button>";
-    }).join("") + toggle;
-    host.querySelectorAll(".ticket-item").forEach(function (b) {
-      b.addEventListener("click", function () {
-        currentTicket = b.dataset.id;
-        renderTicketList();
-        renderThread();
-      });
-    });
-    bindAtToggle(host);
-  }
-  function bindAtToggle(host) {
-    var t = host.querySelector("#at-toggle-archived");
-    if (t) t.addEventListener("click", function () {
-      showArchived = !showArchived;
-      var pool = tickets.filter(function (x) { return showArchived ? x.archived : !x.archived; });
-      currentTicket = pool.length ? pool[0].id : null;
-      renderTicketList();
-      renderThread();
-    });
-  }
-
-  function renderThread() {
-    var t = tickets.find(function (x) { return x.id === currentTicket; });
-    document.getElementById("at-empty").hidden = !!t;
-    document.getElementById("at-view").hidden = !t;
-    if (!t) return;
-    document.getElementById("at-subject").textContent = t.subject;
-    document.getElementById("at-meta").textContent = clientName(t.partner_id) + " · ouvert le " + fmtDateTime(t.created_at);
-    document.getElementById("at-status").value = t.status;
-    var archBtn = document.getElementById("at-archive");
-    archBtn.hidden = !(t.status === "resolu" || t.status === "ferme");
-    archBtn.textContent = t.archived ? "Désarchiver" : "Archiver";
-    var msgs = (t.cta_ticket_messages || []).slice().sort(function (a, b) {
-      return new Date(a.created_at) - new Date(b.created_at);
-    });
-    document.getElementById("at-msgs").innerHTML = msgs.map(function (m) {
-      var isCta = m.author === "cta";
-      return '<div style="display:flex;gap:12px;align-items:flex-start;' + (isCta ? "flex-direction:row-reverse;" : "") + '">' +
-        '<span style="width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;' +
-        (isCta ? "background:rgba(47,123,255,.15);border:1px solid rgba(77,141,255,.45);font-size:14px;" : "background:rgba(120,150,200,.12);border:1px solid rgba(120,150,200,.3);font-family:'IBM Plex Mono',monospace;font-size:9px;color:#9fb6d8;") + '">' +
-        (isCta ? "🎧" : "CLIENT") + "</span>" +
-        '<div style="max-width:80%;padding:12px 16px;font-size:13.5px;line-height:1.55;color:#dfe6f2;' +
-        (isCta
-          ? "border-radius:14px 4px 14px 14px;background:rgba(47,123,255,.12);border:1px solid rgba(77,141,255,.3);"
-          : "border-radius:4px 14px 14px 14px;background:rgba(13,17,25,.9);border:1px solid rgba(120,150,200,.22);") + '">' +
-        esc(m.body).replace(/\n/g, "<br>") +
-        '<div style="margin-top:6px;font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#5f6d84;">' + esc(fmtDateTime(m.created_at)) + "</div>" +
-        "</div></div>";
-    }).join("");
-  }
-
-  function reloadTickets() {
-    return api("cta_tickets?select=*,cta_ticket_messages(*)&order=updated_at.desc").then(function (rows) {
-      tickets = rows;
-      if (currentTicket && !tickets.some(function (t) { return t.id === currentTicket; })) currentTicket = null;
-      if (!currentTicket) {
-        var pool = tickets.filter(function (t) { return showArchived ? t.archived : !t.archived; });
-        if (pool.length) currentTicket = pool[0].id;
-      }
-      refreshStats(); renderTicketList(); renderThread();
-    });
-  }
-
-  document.getElementById("at-archive").addEventListener("click", function () {
-    var t = tickets.find(function (x) { return x.id === currentTicket; });
-    if (!t) return;
-    api("cta_tickets?id=eq." + currentTicket, { method: "PATCH", body: { archived: !t.archived } })
-      .then(function () { currentTicket = null; return reloadTickets(); })
-      .catch(function () { showError("Archivage impossible."); });
-  });
-
-  document.getElementById("at-status").addEventListener("change", function () {
-    if (!currentTicket) return;
-    api("cta_tickets?id=eq." + currentTicket, { method: "PATCH", body: { status: this.value } })
-      .then(reloadTickets)
-      .catch(function () { showError("Mise à jour du ticket impossible."); });
-  });
-  document.getElementById("at-reply").addEventListener("submit", function (ev) {
-    ev.preventDefault();
-    var body = document.getElementById("at-body").value.trim();
-    if (!body || !currentTicket) return;
-    api("cta_ticket_messages", { method: "POST", body: { ticket_id: currentTicket, author: "cta", author_id: uid, body: body } })
-      .then(function () {
-        document.getElementById("at-body").value = "";
-        return reloadTickets();
-      })
-      .catch(function () { showError("Envoi impossible."); });
   });
 
   /* ---------- Matériel (inventaire, prêts et locations) ---------- */
@@ -1193,6 +1049,49 @@
       .then(function (rows) { equipment = rows; renderEquipment(); renderIntervFormOptions(); })
       .catch(function () { showError("Ajout impossible."); });
   });
+
+  /* ---------- Catalogue valises (tarif 2026) ---------- */
+  function adminCostOf(p) {
+    var c = p.cta_product_admin_costs;
+    if (Array.isArray(c)) c = c[0];
+    return c ? c.admin_price_ht : null;
+  }
+  function renderProductsAdmin() {
+    var host = document.getElementById("prodadmin-list");
+    if (!host) return;
+    if (!products.length) {
+      host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Catalogue vide.</p>';
+      return;
+    }
+    var html = "";
+    var lastCat = "";
+    products.forEach(function (p) {
+      if (p.category !== lastCat) {
+        html += '<div style="padding:14px 24px 4px;font-family:\'IBM Plex Mono\',monospace;font-size:11.5px;letter-spacing:.14em;color:#7fadff;text-transform:uppercase;border-top:1px solid rgba(120,150,200,.08);">' + esc(p.category) + "</div>";
+        lastCat = p.category;
+      }
+      var cost = adminCostOf(p);
+      html += '<div class="list-row prodadmin-row" data-prod-row="' + p.id + '" style="display:grid;grid-template-columns:1fr 120px 120px 120px;gap:10px;align-items:center;border-top:none;">' +
+        '<span style="font-size:13px;font-weight:600;color:#dfe6f2;">' + esc(p.name) +
+        (p.reference ? ' <span style="font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;color:#5f6d84;">· ' + esc(p.reference) + "</span>" : "") + "</span>" +
+        '<span style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:13px;color:#8b98ae;">' + esc(eur(p.public_price_ht)) + "</span>" +
+        '<span style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:13px;color:#38d47a;">' + esc(eur(p.distrib_price_ht)) + "</span>" +
+        '<input class="input prod-cost" type="number" step="0.01" min="0" value="' + (cost == null ? "" : cost) + '" placeholder="€ HT" title="Mon prix net (visible de moi seul)" style="padding:8px 10px;font-size:13px;text-align:right;">' +
+        "</div>";
+    });
+    host.innerHTML = html;
+    host.querySelectorAll(".prod-cost").forEach(function (inp) {
+      inp.addEventListener("change", function () {
+        var id = inp.closest("[data-prod-row]").dataset.prodRow;
+        var val = inp.value === "" ? null : Number(inp.value);
+        api("cta_product_admin_costs?product_id=eq." + id, { method: "PATCH", body: { admin_price_ht: val } })
+          .then(function () {
+            var p = products.find(function (x) { return x.id === id; });
+            if (p) p.cta_product_admin_costs = { admin_price_ht: val };
+          }).catch(function () { showError("Prix non enregistré."); });
+      });
+    });
+  }
 
   /* ---------- Synchronisation agenda (flux iCalendar) ---------- */
   function setupCalendarSync() {

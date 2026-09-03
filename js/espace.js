@@ -193,8 +193,13 @@
     if (clientType === "distributeur") {
       document.getElementById("tab-btn-clients").hidden = false;
       document.getElementById("ireq-btn").hidden = false;
+      // Distributeur : pas de devis / factures ici (gérés par la banque de CTA)
+      document.getElementById("tab-btn-documents").hidden = true;
+      document.getElementById("stat-devis-tile").hidden = true;
+      document.getElementById("grid-col-public").textContent = "Tarif public conseillé";
       loadFiches();
       loadMyRequests();
+      loadProducts();
     }
     if (clientType !== "distributeur") {
       // Client direct : l'onglet devient « Vos tarifs » (tarifs publics, sans remise)
@@ -430,11 +435,33 @@
       return '<div class="list-row price-row" style="display:grid;grid-template-columns:1fr 140px 140px;gap:10px;align-items:center;">' +
         '<span style="font-size:14.5px;font-weight:600;color:#dfe6f2;">' + esc(r.label) + "</span>" +
         (distrib
-          ? '<span style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:14px;color:#8b98ae;text-decoration:line-through;">' + esc(eur(r.public_price_ht)) + "</span>"
+          ? '<span style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:14px;color:#8b98ae;">' + esc(eur(r.public_price_ht)) + "</span>"
           : "<span></span>") +
         '<span style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:15px;font-weight:600;color:#7fadff;">' + esc(eur(myPrice)) + "</span>" +
         "</div>";
     }).join("");
+  }
+  /* Catalogue valises (distributeurs) : tarif public conseillé + prix net */
+  function loadProducts() {
+    api("cta_products?select=*&order=sort.asc").then(function (rows) {
+      if (!rows || !rows.length) return;
+      document.getElementById("prod-wrap").hidden = false;
+      var html = "";
+      var lastCat = "";
+      rows.forEach(function (p) {
+        if (p.category !== lastCat) {
+          html += '<div style="padding:14px 24px 4px;font-family:\'IBM Plex Mono\',monospace;font-size:12px;letter-spacing:.14em;color:#7fadff;text-transform:uppercase;border-top:1px solid rgba(120,150,200,.08);">' + esc(p.category) + "</div>";
+          lastCat = p.category;
+        }
+        html += '<div class="list-row price-row" style="display:grid;grid-template-columns:1fr 140px 140px;gap:10px;align-items:center;border-top:none;">' +
+          '<span style="font-size:13.5px;font-weight:600;color:#dfe6f2;">' + esc(p.name) +
+          (p.reference ? ' <span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#5f6d84;">· ' + esc(p.reference) + "</span>" : "") + "</span>" +
+          '<span style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:13.5px;color:#8b98ae;">' + esc(eur(p.public_price_ht)) + "</span>" +
+          '<span style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:14.5px;font-weight:600;color:#7fadff;">' + esc(eur(p.distrib_price_ht)) + "</span>" +
+          "</div>";
+      });
+      document.getElementById("prod-list").innerHTML = html;
+    }).catch(function () { /* non bloquant */ });
   }
   api("cta_price_grid?select=*&order=sort.asc").then(function (rows) {
     gridRows = rows;
@@ -541,7 +568,8 @@
     var sel = document.getElementById("ir-endclient");
     if (!sel) return;
     sel.innerHTML = '<option value="">Chez quel client final ? (optionnel)</option>' +
-      fiches.map(function (f) { return '<option value="' + f.id + '">' + esc(f.company_name) + "</option>"; }).join("");
+      fiches.map(function (f) { return '<option value="' + f.id + '">' + esc(f.company_name) + "</option>"; }).join("") +
+      '<option value="__new">➕ Créer un nouveau client final…</option>';
   }
   if (ireqBtn) {
     var slotSel = document.getElementById("ir-slot");
@@ -563,36 +591,82 @@
       document.getElementById("ireq-modal").hidden = true;
     });
     document.getElementById("ir-endclient").addEventListener("change", function () {
+      document.getElementById("ir-newclient").hidden = this.value !== "__new";
       var f = fiches.find(function (x) { return x.id === this.value; }.bind(this));
       var loc = document.getElementById("ir-loc");
       if (f && f.address && !loc.value.trim()) loc.value = f.address;
+    });
+    // Prix de la prestation sélectionnée (grille distributeur)
+    document.getElementById("ir-cat").addEventListener("change", function () {
+      var hint = document.getElementById("ir-price");
+      var cat = this.value;
+      var prices = (gridRows || [])
+        .filter(function (g) { return g.category === cat && g.partner_price_ht != null; })
+        .map(function (g) { return Number(g.partner_price_ht); });
+      if (!cat || !prices.length) { hint.hidden = true; return; }
+      var min = Math.min.apply(null, prices);
+      hint.hidden = false;
+      hint.textContent = "💶 Tarif distributeur : " + (prices.length > 1 ? "à partir de " : "") +
+        min.toLocaleString("fr-FR", { minimumFractionDigits: min % 1 ? 2 : 0 }) + " € HT (facturé après intervention)";
     });
     document.getElementById("ireq-form").addEventListener("submit", function (ev) {
       ev.preventDefault();
       var cat = document.getElementById("ir-cat").value;
       if (!cat) return;
-      var body = {
-        partner_id: uid,
-        end_client_id: document.getElementById("ir-endclient").value || null,
-        category: cat,
-        desired_date: document.getElementById("ir-date").value || null,
-        desired_slot: document.getElementById("ir-slot").value || null,
-        equipment: document.getElementById("ir-equip").value.trim() || null,
-        location: document.getElementById("ir-loc").value.trim() || null,
-        message: document.getElementById("ir-msg").value.trim() || null
-      };
-      api("cta_intervention_requests", { method: "POST", body: body })
+      var msg = document.getElementById("ireq-msg");
+      function fail(text) {
+        msg.hidden = false;
+        msg.style.color = "#ff8c8c";
+        msg.textContent = text;
+      }
+      var endChoice = document.getElementById("ir-endclient").value;
+      // « Créer un nouveau client final » : la fiche est créée d'abord, puis utilisée
+      var ficheReady;
+      if (endChoice === "__new") {
+        var company = document.getElementById("irn-company").value.trim();
+        if (!company) { fail("Indiquez le nom du nouveau client final."); return; }
+        ficheReady = api("cta_end_clients", {
+          method: "POST",
+          prefer: "return=representation",
+          body: {
+            distributor_id: uid,
+            company_name: company,
+            contact_name: document.getElementById("irn-contact").value.trim() || null,
+            phone: document.getElementById("irn-phone").value.trim() || null,
+            email: document.getElementById("irn-email").value.trim() || null,
+            address: document.getElementById("irn-address").value.trim() || null
+          }
+        }).then(function (rows) {
+          var f = rows && rows[0];
+          var loc = document.getElementById("ir-loc");
+          if (f && f.address && !loc.value.trim()) loc.value = f.address;
+          return f ? f.id : null;
+        });
+      } else {
+        ficheReady = Promise.resolve(endChoice || null);
+      }
+      ficheReady.then(function (endClientId) {
+        var body = {
+          partner_id: uid,
+          end_client_id: endClientId,
+          category: cat,
+          desired_date: document.getElementById("ir-date").value || null,
+          desired_slot: document.getElementById("ir-slot").value || null,
+          equipment: document.getElementById("ir-equip").value.trim() || null,
+          location: document.getElementById("ir-loc").value.trim() || null,
+          message: document.getElementById("ir-msg").value.trim() || null
+        };
+        return api("cta_intervention_requests", { method: "POST", body: body });
+      })
         .then(function () {
           document.getElementById("ireq-form").reset();
+          document.getElementById("ir-newclient").hidden = true;
+          document.getElementById("ir-price").hidden = true;
           document.getElementById("ireq-modal").hidden = true;
+          if (endChoice === "__new") loadFiches();
           return loadMyRequests();
         })
-        .catch(function () {
-          var msg = document.getElementById("ireq-msg");
-          msg.hidden = false;
-          msg.style.color = "#ff8c8c";
-          msg.textContent = "Envoi impossible, réessayez plus tard.";
-        });
+        .catch(function () { fail("Envoi impossible, réessayez plus tard."); });
     });
   }
 
@@ -675,7 +749,7 @@
         (isCta
           ? "border-radius:4px 14px 14px 14px;background:rgba(47,123,255,.12);border:1px solid rgba(77,141,255,.3);"
           : "border-radius:14px 4px 14px 14px;background:rgba(13,17,25,.9);border:1px solid rgba(120,150,200,.22);") + '">' +
-        (isCta ? '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;letter-spacing:.12em;color:#7fadff;text-transform:uppercase;margin-bottom:4px;">Hotline CTA</div>' : "") +
+        (isCta ? '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;letter-spacing:.12em;color:#7fadff;text-transform:uppercase;margin-bottom:4px;">' + (m.is_auto ? "🤖 Réponse automatique" : "Hotline CTA") + "</div>" : "") +
         esc(m.body).replace(/\n/g, "<br>") +
         '<div style="margin-top:6px;font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#5f6d84;">' + esc(fmtDateTime(m.created_at)) + "</div>" +
         "</div></div>";
@@ -716,6 +790,10 @@
         return api("cta_ticket_messages", {
           method: "POST",
           body: { ticket_id: ticket.id, author: "partner", author_id: uid, body: body }
+        }).then(function () {
+          // Réponse automatique instantanée si le cas est répertorié
+          return fn("auto-reply", { ticket_id: ticket.id, message: subject + "\n" + body })
+            .catch(function () { /* non bloquant */ });
         }).then(function () { return ticket.id; });
       })
       .then(function (id) {
@@ -736,6 +814,10 @@
       method: "POST",
       body: { ticket_id: currentTicket, author: "partner", author_id: uid, body: body }
     })
+      .then(function () {
+        return fn("auto-reply", { ticket_id: currentTicket, message: body })
+          .catch(function () { /* non bloquant */ });
+      })
       .then(function () {
         document.getElementById("r-body").value = "";
         return loadTickets(true);
