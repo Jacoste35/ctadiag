@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/site.css?v=20260906">
+<link rel="stylesheet" href="css/site.css?v=20260907">
 </head>
 <body class="with-bottom-nav">
 
@@ -156,7 +156,7 @@
         <div id="clients-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
       </div>
       <div class="panel-card" style="overflow:hidden;margin-top:22px;">
-        <div style="padding:14px 24px;background:rgba(47,123,255,.08);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8b98ae;">🏁 Clients finaux (fiches créées par vos distributeurs)</div>
+        <div style="padding:14px 24px;background:rgba(47,123,255,.08);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8b98ae;">🚗 Clients finaux (fiches créées par vos distributeurs)</div>
         <div id="ec-admin-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
       </div>
     </section>
@@ -339,11 +339,38 @@
   </main>
 </div>
 
+<!-- Report de rendez-vous : petit formulaire avec vrais sélecteurs date / heure -->
+<div id="resched-modal" hidden style="position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(4,6,10,.72);backdrop-filter:blur(6px);">
+  <div class="panel-card" style="position:relative;overflow:hidden;width:100%;max-width:420px;padding:26px;margin:auto;">
+    <div style="position:absolute;top:-1px;left:24px;right:40%;height:2px;background:linear-gradient(90deg,transparent,#2f7bff,transparent);"></div>
+    <h3 style="margin:0 0 6px;font-size:18px;font-weight:900;">📅 Reporter le rendez-vous</h3>
+    <p id="rs-info" style="margin:0 0 18px;font-size:13.5px;color:#9aa6ba;line-height:1.6;"></p>
+    <form id="resched-form" style="display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <label for="rs-date" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#7fadff;text-transform:uppercase;">Nouvelle date *</label>
+        <input id="rs-date" class="input" type="date" required style="width:100%;box-sizing:border-box;">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <label for="rs-time" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#7fadff;text-transform:uppercase;">Nouvelle heure (vide = journée)</label>
+        <input id="rs-time" class="input" type="time" style="width:100%;box-sizing:border-box;">
+      </div>
+      <label style="display:flex;align-items:center;gap:10px;font-size:13.5px;color:#c3cddd;cursor:pointer;">
+        <input id="rs-notify" type="checkbox" checked style="width:18px;height:18px;accent-color:#2f7bff;flex:none;">
+        Prévenir le client par e-mail
+      </label>
+      <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:4px;">
+        <button type="button" id="rs-cancel" class="btn-ghost" style="padding:12px 22px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:13.5px;cursor:pointer;">Annuler</button>
+        <button type="submit" class="btn-primary" style="padding:12px 26px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;box-shadow:0 6px 20px rgba(47,123,255,.35);">Reporter ✓</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- Menu bas façon application (téléphone) -->
 <nav id="bottom-nav" class="bottom-nav"></nav>
 
-<script src="js/config.js?v=20260906"></script>
-<script src="js/admin.js?v=20260906"></script>
-<script src="js/pwa.js?v=20260906"></script>
+<script src="js/config.js?v=20260907"></script>
+<script src="js/admin.js?v=20260907"></script>
+<script src="js/pwa.js?v=20260907"></script>
 </body>
 </html>
