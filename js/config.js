@@ -13,6 +13,9 @@ window.CTA_CONFIG = {
   // S'ajoute aux dates de la table `blocked_dates` du backend.
   joursBloques: "",
 
+  // Clé publique VAPID des notifications push (la clé privée reste côté serveur).
+  vapidPublicKey: "BGJqczrJWqP-5E5GVSK-GXw_ZFzZXId4SSsRxvNVHJm0B3rW2JXYFpBP-rKtmBnTkFaqtR-HuqZQIutT8LsLehE",
+
   // Backend Supabase (formulaire de devis, jours bloqués, connexion partenaires).
   // La clé "anon" est publique par conception : les droits sont contrôlés côté serveur (RLS).
   supabaseUrl: "https://ooogbitnoqvrtwrpisnn.supabase.co",

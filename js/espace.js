@@ -143,7 +143,7 @@
   tabs.forEach(function (t) {
     t.addEventListener("click", function () {
       tabs.forEach(function (x) { x.classList.toggle("active", x === t); });
-      ["interventions", "documents", "grille", "clients", "messagerie"].forEach(function (name) {
+      ["interventions", "documents", "grille", "clients", "materiel", "mes", "messagerie"].forEach(function (name) {
         document.getElementById("tab-" + name).hidden = name !== t.dataset.tab;
       });
     });
@@ -176,9 +176,11 @@
   /* ---------- Profil (type de client : direct / distributeur) ---------- */
   var clientType = "direct";
   var profileName = "";
+  var me = null;
   api("cta_partners?select=*&id=eq." + uid).then(function (rows) {
     var p = rows && rows[0];
     if (!p) return;
+    me = p;
     clientType = p.client_type || "direct";
     var name = p.contact_name || p.company_name || p.email || "";
     profileName = p.contact_name || "";
@@ -190,15 +192,18 @@
     typeEl.textContent = clientType === "distributeur" ? "Distributeur" : "Client direct";
     if (p.role === "admin") document.getElementById("admin-link").hidden = false;
     if (p.must_change_password) showPasswordModal();
+    // Demande d'intervention : ouverte à tous les clients
+    document.getElementById("ireq-btn").hidden = false;
+    loadMyRequests();
+    // Mise en service à distance : onglet activé par le gérant, fiche par fiche
+    if (p.remote_setup_enabled) document.getElementById("tab-btn-mes").hidden = false;
     if (clientType === "distributeur") {
       document.getElementById("tab-btn-clients").hidden = false;
-      document.getElementById("ireq-btn").hidden = false;
       // Distributeur : pas de devis / factures ici (gérés par la banque de CTA)
       document.getElementById("tab-btn-documents").hidden = true;
       document.getElementById("stat-devis-tile").hidden = true;
       document.getElementById("grid-col-public").textContent = "Tarif public conseillé";
       loadFiches();
-      loadMyRequests();
       loadProducts();
       renderPlanning();
     }
@@ -209,9 +214,82 @@
       document.getElementById("grid-col-partner").textContent = "Tarif HT";
       document.getElementById("grid-note").textContent =
         "Tarifs HT, hors frais de déplacement. Devis personnalisé pour interventions multiples ; grille distributeur dédiée si vous revendez du matériel : parlez-en avec nous.";
+      // Pas de fiche client final chez un client direct
+      document.getElementById("ir-endclient").hidden = true;
     }
     renderGrid();
   }).catch(function () { /* non bloquant */ });
+
+  /* ---------- Mon profil (coordonnées modifiables) ---------- */
+  document.getElementById("profile-btn").addEventListener("click", function () {
+    if (!me) return;
+    document.getElementById("pf-company").value = me.company_name || "";
+    document.getElementById("pf-contact").value = me.contact_name || "";
+    document.getElementById("pf-phone").value = me.phone || "";
+    document.getElementById("pf-email").value = me.email || "";
+    document.getElementById("pf-address").value = me.address || "";
+    document.getElementById("profile-msg").hidden = true;
+    document.getElementById("profile-modal").hidden = false;
+  });
+  document.getElementById("profile-close").addEventListener("click", function () {
+    document.getElementById("profile-modal").hidden = true;
+  });
+  document.getElementById("profile-form").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var msg = document.getElementById("profile-msg");
+    var newEmail = document.getElementById("pf-email").value.trim();
+    var body = {
+      company_name: document.getElementById("pf-company").value.trim() || null,
+      contact_name: document.getElementById("pf-contact").value.trim() || null,
+      phone: document.getElementById("pf-phone").value.trim() || null,
+      email: newEmail || null,
+      address: document.getElementById("pf-address").value.trim() || null
+    };
+    var emailChanged = me && newEmail && newEmail !== me.email;
+    api("cta_partners?id=eq." + uid, { method: "PATCH", body: body })
+      .then(function () {
+        Object.assign(me, body);
+        profileName = me.contact_name || "";
+        document.getElementById("p-name").textContent = me.contact_name || me.company_name || me.email || "";
+        document.getElementById("p-company").textContent = me.company_name || me.email || "";
+        if (emailChanged) {
+          // Change aussi l'e-mail de connexion (une confirmation peut être demandée)
+          return fetch(API + "/auth/v1/user", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", apikey: KEY, Authorization: "Bearer " + session.access_token },
+            body: JSON.stringify({ email: newEmail })
+          }).then(function (r) {
+            msg.hidden = false;
+            msg.style.color = "#7fadff";
+            msg.textContent = r.ok
+              ? "Profil enregistré ✓ Un e-mail de confirmation peut vous être envoyé pour valider la nouvelle adresse de connexion."
+              : "Coordonnées enregistrées ✓ (l'e-mail de connexion n'a pas pu être changé : contactez CTA)";
+          });
+        }
+        msg.hidden = false;
+        msg.style.color = "#7fadff";
+        msg.textContent = "Profil enregistré ✓";
+      })
+      .catch(function () {
+        msg.hidden = false;
+        msg.style.color = "#ff8c8c";
+        msg.textContent = "Enregistrement impossible, réessayez.";
+      });
+  });
+
+  /* ---------- Notifications push ---------- */
+  var notifBtn = document.getElementById("notif-btn");
+  if ("Notification" in window && Notification.permission === "granted") notifBtn.textContent = "🔔✓";
+  notifBtn.addEventListener("click", function () {
+    window.ctaEnablePush(uid, function (body) {
+      return api("cta_push_subscriptions?on_conflict=endpoint", {
+        method: "POST", body: body, prefer: "resolution=merge-duplicates"
+      });
+    }).then(function () {
+      notifBtn.textContent = "🔔✓";
+      window.alert("Notifications activées sur cet appareil ✓\nVous serez prévenu des réponses à vos tickets.");
+    }).catch(function (e) { window.alert("Notifications : " + e.message); });
+  });
 
   /* ---------- Mot de passe provisoire : changement obligatoire ---------- */
   function showPasswordModal() {
@@ -347,6 +425,9 @@
         badge(r.status) +
         '<button type="button" data-iv-arch="' + r.id + '" title="' + (r.client_archived ? "Désarchiver" : "Archiver") + '" style="padding:7px 12px;border-radius:999px;border:1px solid rgba(120,150,200,.25);background:transparent;color:#8b98ae;font-weight:700;font-size:12px;cursor:pointer;font-family:\'Archivo\',sans-serif;">' +
         (r.client_archived ? "Désarchiver" : "🗄️") + "</button>" +
+        (clientType === "distributeur"
+          ? '<button type="button" data-iv-del="' + r.id + '" title="Supprimer" style="padding:7px 12px;border-radius:999px;border:1px solid rgba(255,110,110,.35);background:transparent;color:#ff8c8c;font-weight:700;font-size:12px;cursor:pointer;font-family:\'Archivo\',sans-serif;">✕</button>'
+          : "") +
         "</div>";
     });
     host.innerHTML = html + toggle;
@@ -367,6 +448,17 @@
             r.client_archived = !r.client_archived;
             renderMyInterventions();
           }).catch(function () { showError("Archivage impossible : réessayez plus tard."); });
+      });
+    });
+    host.querySelectorAll("[data-iv-del]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        if (!window.confirm("Supprimer définitivement cette intervention de votre suivi ? CTA ne la verra plus non plus.")) return;
+        api("cta_interventions?id=eq." + b.dataset.ivDel, { method: "DELETE" })
+          .then(function () {
+            myInterventions = myInterventions.filter(function (x) { return x.id !== b.dataset.ivDel; });
+            renderMyInterventions();
+            renderPlanning();
+          }).catch(function () { showError("Suppression impossible."); });
       });
     });
   }
@@ -501,28 +593,74 @@
         "</div>";
     }).join("");
   }
-  /* Catalogue valises (distributeurs) : tarif public conseillé + prix net */
+  /* Catalogue valises (distributeurs) : tarif public conseillé + prix net.
+     Chaque gamme se déroule / se replie d'un clic. */
+  var catalogRows = [];
+  var openCats = {};
+  function renderProducts() {
+    if (!catalogRows.length) return;
+    document.getElementById("prod-wrap").hidden = false;
+    var byCat = {};
+    var order = [];
+    catalogRows.forEach(function (p) {
+      if (!byCat[p.category]) { byCat[p.category] = []; order.push(p.category); }
+      byCat[p.category].push(p);
+    });
+    document.getElementById("prod-list").innerHTML = order.map(function (cat) {
+      var open = !!openCats[cat];
+      return '<button type="button" data-cat-toggle="' + esc(cat) + '" style="display:flex;align-items:center;gap:10px;width:100%;padding:14px 24px;border:none;border-top:1px solid rgba(120,150,200,.08);background:transparent;cursor:pointer;font-family:\'IBM Plex Mono\',monospace;font-size:12px;letter-spacing:.14em;color:#7fadff;text-transform:uppercase;text-align:left;">' +
+        "<span>" + (open ? "▾" : "▸") + "</span><span>" + esc(cat) + "</span>" +
+        '<span style="color:#5f6d84;text-transform:none;letter-spacing:0;">(' + byCat[cat].length + ")</span></button>" +
+        (open ? byCat[cat].map(function (p) {
+          return '<div class="list-row price-row" style="display:grid;grid-template-columns:1fr 140px 140px;gap:10px;align-items:center;border-top:none;">' +
+            '<span style="font-size:13.5px;font-weight:600;color:#dfe6f2;">' + esc(p.name) +
+            (p.reference ? ' <span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#5f6d84;">· ' + esc(p.reference) + "</span>" : "") + "</span>" +
+            '<span style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:13.5px;color:#8b98ae;">' + esc(eur(p.public_price_ht)) + "</span>" +
+            '<span style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:14.5px;font-weight:600;color:#7fadff;">' + esc(eur(p.distrib_price_ht)) + "</span>" +
+            "</div>";
+        }).join("") : "");
+    }).join("");
+    document.getElementById("prod-list").querySelectorAll("[data-cat-toggle]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        openCats[b.dataset.catToggle] = !openCats[b.dataset.catToggle];
+        renderProducts();
+      });
+    });
+  }
   function loadProducts() {
     api("cta_products?select=*&order=sort.asc").then(function (rows) {
-      if (!rows || !rows.length) return;
-      document.getElementById("prod-wrap").hidden = false;
-      var html = "";
-      var lastCat = "";
-      rows.forEach(function (p) {
-        if (p.category !== lastCat) {
-          html += '<div style="padding:14px 24px 4px;font-family:\'IBM Plex Mono\',monospace;font-size:12px;letter-spacing:.14em;color:#7fadff;text-transform:uppercase;border-top:1px solid rgba(120,150,200,.08);">' + esc(p.category) + "</div>";
-          lastCat = p.category;
-        }
-        html += '<div class="list-row price-row" style="display:grid;grid-template-columns:1fr 140px 140px;gap:10px;align-items:center;border-top:none;">' +
-          '<span style="font-size:13.5px;font-weight:600;color:#dfe6f2;">' + esc(p.name) +
-          (p.reference ? ' <span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#5f6d84;">· ' + esc(p.reference) + "</span>" : "") + "</span>" +
-          '<span style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:13.5px;color:#8b98ae;">' + esc(eur(p.public_price_ht)) + "</span>" +
-          '<span style="text-align:right;font-family:\'IBM Plex Mono\',monospace;font-size:14.5px;font-weight:600;color:#7fadff;">' + esc(eur(p.distrib_price_ht)) + "</span>" +
-          "</div>";
-      });
-      document.getElementById("prod-list").innerHTML = html;
+      catalogRows = rows || [];
+      if (catalogRows.length) openCats[catalogRows[0].category] = true;
+      renderProducts();
     }).catch(function () { /* non bloquant */ });
   }
+
+  /* ---------- Liste des appareils (noms, sans prix) : selects du site ---------- */
+  var productNames = [];
+  function fillDeviceSelects() {
+    var opts = "";
+    var lastCat = "";
+    productNames.forEach(function (p) {
+      if (p.category !== lastCat) {
+        if (lastCat) opts += "</optgroup>";
+        opts += '<optgroup label="' + esc(p.category) + '">';
+        lastCat = p.category;
+      }
+      var short = p.name.split(" - ")[0];
+      opts += '<option value="' + esc(short) + '">' + esc(short) + "</option>";
+    });
+    if (lastCat) opts += "</optgroup>";
+    var eqrSel = document.getElementById("eqr-product");
+    eqrSel.innerHTML = '<option value="">Quel appareil ? *</option>' + opts + '<option value="__autre">Autre…</option>';
+    var irSel = document.getElementById("ir-equip");
+    irSel.innerHTML = '<option value="">Matériel concerné (optionnel)</option>' + opts + '<option value="__autre">Autre…</option>';
+    var mesSel = document.getElementById("mes-device");
+    mesSel.innerHTML = '<option value="">Quel appareil mettez-vous en service ?</option>' + opts;
+  }
+  api("cta_product_names?select=*&order=sort.asc").then(function (rows) {
+    productNames = rows || [];
+    fillDeviceSelects();
+  }).catch(function () { /* non bloquant */ });
   api("cta_price_grid?select=*&order=sort.asc").then(function (rows) {
     gridRows = rows;
     renderGrid();
@@ -553,7 +691,9 @@
         '<input class="input" data-f="contact_name" value="' + esc(f.contact_name || "") + '" placeholder="Contact" style="width:120px;padding:9px 12px;font-size:13px;">' +
         '<input class="input" data-f="phone" value="' + esc(f.phone || "") + '" placeholder="Téléphone" style="width:125px;padding:9px 12px;font-size:13px;">' +
         '<input class="input" data-f="email" value="' + esc(f.email || "") + '" placeholder="E-mail" style="flex:1;min-width:140px;padding:9px 12px;font-size:13px;">' +
-        '<input class="input" data-f="address" value="' + esc(f.address || "") + '" placeholder="Adresse" style="flex:1 1 100%;min-width:200px;padding:9px 12px;font-size:13px;">' +
+        '<input class="input" data-f="address" value="' + esc(f.address || "") + '" placeholder="Adresse (n° et rue)" style="flex:1 1 100%;min-width:200px;padding:9px 12px;font-size:13px;">' +
+        '<input class="input" data-f="postal_code" value="' + esc(f.postal_code || "") + '" placeholder="Code postal" style="width:110px;padding:9px 12px;font-size:13px;">' +
+        '<input class="input" data-f="city" value="' + esc(f.city || "") + '" placeholder="Ville" style="flex:1;min-width:120px;padding:9px 12px;font-size:13px;">' +
         '<div style="display:flex;gap:8px;">' +
         '<button style="padding:7px 14px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:12px;cursor:pointer;font-family:\'Archivo\',sans-serif;" data-ec-save="' + f.id + '">Enregistrer</button>' +
         '<button style="padding:7px 14px;border-radius:999px;border:1px solid rgba(255,110,110,.35);background:transparent;color:#ff8c8c;font-weight:700;font-size:12px;cursor:pointer;font-family:\'Archivo\',sans-serif;" data-ec-del="' + f.id + '">✕</button>' +
@@ -592,6 +732,8 @@
       phone: document.getElementById("ec-phone").value.trim() || null,
       email: document.getElementById("ec-email").value.trim() || null,
       address: document.getElementById("ec-address").value.trim() || null,
+      postal_code: document.getElementById("ec-zip").value.trim() || null,
+      city: document.getElementById("ec-city").value.trim() || null,
       notes: document.getElementById("ec-notes").value.trim() || null
     };
     if (!body.company_name) return;
@@ -650,23 +792,31 @@
     document.getElementById("ireq-close").addEventListener("click", function () {
       document.getElementById("ireq-modal").hidden = true;
     });
+    function fullAddr(f) {
+      return [f.address, [f.postal_code, f.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+    }
     document.getElementById("ir-endclient").addEventListener("change", function () {
       document.getElementById("ir-newclient").hidden = this.value !== "__new";
       var f = fiches.find(function (x) { return x.id === this.value; }.bind(this));
       var loc = document.getElementById("ir-loc");
-      if (f && f.address && !loc.value.trim()) loc.value = f.address;
+      if (f && !loc.value.trim() && fullAddr(f)) loc.value = fullAddr(f);
     });
-    // Prix de la prestation sélectionnée (grille distributeur)
+    // Matériel concerné : « Autre… » fait apparaître un champ libre
+    document.getElementById("ir-equip").addEventListener("change", function () {
+      document.getElementById("ir-equip-autre").hidden = this.value !== "__autre";
+    });
+    // Prix de la prestation sélectionnée (grille : prix distributeur ou tarif public)
     document.getElementById("ir-cat").addEventListener("change", function () {
       var hint = document.getElementById("ir-price");
       var cat = this.value;
+      var distrib = clientType === "distributeur";
       var prices = (gridRows || [])
-        .filter(function (g) { return g.category === cat && g.partner_price_ht != null; })
-        .map(function (g) { return Number(g.partner_price_ht); });
+        .filter(function (g) { return g.category === cat && (distrib ? g.partner_price_ht : g.public_price_ht) != null; })
+        .map(function (g) { return Number(distrib ? g.partner_price_ht : g.public_price_ht); });
       if (!cat || !prices.length) { hint.hidden = true; return; }
       var min = Math.min.apply(null, prices);
       hint.hidden = false;
-      hint.textContent = "💶 Tarif distributeur : " + (prices.length > 1 ? "à partir de " : "") +
+      hint.textContent = "💶 " + (distrib ? "Tarif distributeur : " : "Tarif : ") + (prices.length > 1 ? "à partir de " : "") +
         min.toLocaleString("fr-FR", { minimumFractionDigits: min % 1 ? 2 : 0 }) + " € HT (facturé après intervention)";
     });
     document.getElementById("ireq-form").addEventListener("submit", function (ev) {
@@ -679,7 +829,7 @@
         msg.style.color = "#ff8c8c";
         msg.textContent = text;
       }
-      var endChoice = document.getElementById("ir-endclient").value;
+      var endChoice = clientType === "distributeur" ? document.getElementById("ir-endclient").value : "";
       // « Créer un nouveau client final » : la fiche est créée d'abord, puis utilisée
       var ficheReady;
       if (endChoice === "__new") {
@@ -694,25 +844,29 @@
             contact_name: document.getElementById("irn-contact").value.trim() || null,
             phone: document.getElementById("irn-phone").value.trim() || null,
             email: document.getElementById("irn-email").value.trim() || null,
-            address: document.getElementById("irn-address").value.trim() || null
+            address: document.getElementById("irn-address").value.trim() || null,
+            postal_code: document.getElementById("irn-zip").value.trim() || null,
+            city: document.getElementById("irn-city").value.trim() || null
           }
         }).then(function (rows) {
           var f = rows && rows[0];
           var loc = document.getElementById("ir-loc");
-          if (f && f.address && !loc.value.trim()) loc.value = f.address;
+          if (f && !loc.value.trim() && fullAddr(f)) loc.value = fullAddr(f);
           return f ? f.id : null;
         });
       } else {
         ficheReady = Promise.resolve(endChoice || null);
       }
       ficheReady.then(function (endClientId) {
+        var equipVal = document.getElementById("ir-equip").value;
+        if (equipVal === "__autre") equipVal = document.getElementById("ir-equip-autre").value.trim();
         var body = {
           partner_id: uid,
           end_client_id: endClientId,
           category: cat,
           desired_date: document.getElementById("ir-date").value || null,
           desired_slot: document.getElementById("ir-slot").value || null,
-          equipment: document.getElementById("ir-equip").value.trim() || null,
+          equipment: equipVal || null,
           location: document.getElementById("ir-loc").value.trim() || null,
           message: document.getElementById("ir-msg").value.trim() || null
         };
@@ -722,12 +876,124 @@
           document.getElementById("ireq-form").reset();
           document.getElementById("ir-newclient").hidden = true;
           document.getElementById("ir-price").hidden = true;
+          document.getElementById("ir-equip-autre").hidden = true;
           document.getElementById("ireq-modal").hidden = true;
           if (endChoice === "__new") loadFiches();
           return loadMyRequests();
         })
         .catch(function () { fail("Envoi impossible, réessayez plus tard."); });
     });
+  }
+
+  /* ---------- Location / prêt de matériel ---------- */
+  var eqReqs = [];
+  var EQR_STATUS = {
+    nouvelle: ["Envoyée", "badge-blue"], acceptee: ["Acceptée ✓", "badge-green"],
+    refusee: ["Refusée", "badge-grey"], terminee: ["Terminée", "badge-grey"]
+  };
+  function renderEqReqs() {
+    var host = document.getElementById("eqr-list");
+    if (!eqReqs.length) {
+      host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Aucune demande pour le moment : choisissez un appareil ci-dessus.</p>';
+      return;
+    }
+    host.innerHTML = eqReqs.map(function (r) {
+      var st = EQR_STATUS[r.status] || [r.status, "badge-grey"];
+      return '<div class="list-row">' +
+        '<span class="badge ' + (r.kind === "location" ? "badge-amber" : "badge-blue") + '">' + (r.kind === "location" ? "💶 Location" : "🤝 Prêt") + "</span>" +
+        '<div style="flex:1;min-width:200px;">' +
+        '<div style="font-weight:800;font-size:14.5px;">' + esc(r.product_name) + "</div>" +
+        '<div style="margin-top:3px;font-size:12.5px;color:#93a0b5;">' +
+        [r.duration ? "⏱️ " + r.duration : "", r.start_date ? "📅 à partir du " + fmtDate(r.start_date) : ""].filter(Boolean).map(esc).join(" · ") + "</div>" +
+        (r.message ? '<div style="margin-top:3px;font-size:12.5px;color:#8b98ae;">' + esc(r.message) + "</div>" : "") +
+        '<div style="margin-top:3px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#5f6d84;">Envoyée le ' + esc(fmtDateTime(r.created_at)) + "</div></div>" +
+        '<span class="badge ' + st[1] + '">' + st[0] + "</span></div>";
+    }).join("");
+  }
+  function loadEqReqs() {
+    return api("cta_equipment_requests?select=*&order=created_at.desc").then(function (rows) {
+      eqReqs = rows;
+      renderEqReqs();
+    }).catch(function () { /* non bloquant */ });
+  }
+  loadEqReqs();
+  document.getElementById("eqr-form").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var product = document.getElementById("eqr-product").value;
+    if (!product) return;
+    if (product === "__autre") {
+      product = (window.prompt("Quel appareil souhaitez-vous emprunter ou louer ?") || "").trim();
+      if (!product) return;
+    }
+    var body = {
+      partner_id: uid,
+      product_name: product,
+      kind: document.getElementById("eqr-kind").value,
+      duration: document.getElementById("eqr-duration").value || null,
+      start_date: document.getElementById("eqr-date").value || null,
+      message: document.getElementById("eqr-msg").value.trim() || null
+    };
+    api("cta_equipment_requests", { method: "POST", body: body })
+      .then(function () {
+        ev.target.reset();
+        return loadEqReqs();
+      })
+      .catch(function () { showError("Envoi de la demande impossible, réessayez."); });
+  });
+
+  /* ---------- Mise en service à distance : assistant pas à pas ---------- */
+  var setupGuides = [];
+  var mesSteps = [];
+  var mesStep = 0;
+  var mesDevice = "";
+  api("cta_setup_guides?select=*").then(function (rows) { setupGuides = rows || []; }).catch(function () { /* non bloquant */ });
+  document.getElementById("mes-device").addEventListener("change", function () {
+    mesDevice = this.value;
+    var host = document.getElementById("mes-bot");
+    if (!mesDevice) { host.innerHTML = ""; return; }
+    var devNorm = mesDevice.toLowerCase();
+    var g = setupGuides.find(function (x) {
+      var d = String(x.device || "").toLowerCase();
+      return d && (devNorm.indexOf(d) !== -1 || d.indexOf(devNorm) !== -1);
+    });
+    if (!g) {
+      mesSteps = [];
+      host.innerHTML = '<p style="margin:0;padding:16px;border-radius:12px;background:rgba(255,190,80,.08);border:1px solid rgba(255,190,80,.3);color:#ffbe50;font-size:13.5px;line-height:1.6;">Pas encore de guide pour cet appareil. Ouvrez un ticket dans la messagerie : CTA vous accompagne en direct (et le guide sera ajouté).</p>';
+      return;
+    }
+    mesSteps = String(g.steps).split("\n").map(function (s) { return s.trim(); }).filter(Boolean);
+    mesStep = 0;
+    renderMesBot();
+  });
+  function renderMesBot() {
+    var host = document.getElementById("mes-bot");
+    var total = mesSteps.length;
+    if (mesStep >= total) {
+      host.innerHTML =
+        '<div style="padding:22px;border-radius:14px;background:rgba(56,212,122,.08);border:1px solid rgba(56,212,122,.3);text-align:center;">' +
+        '<div style="font-size:30px;">🎉</div>' +
+        '<div style="margin-top:8px;font-weight:800;font-size:16px;color:#38d47a;">Mise en service terminée !</div>' +
+        '<div style="margin-top:6px;font-size:13.5px;color:#9aa6ba;">Votre ' + esc(mesDevice) + ' est prêt. Un doute sur une étape ? Ouvrez un ticket, nous vérifions avec vous.</div>' +
+        '<button type="button" id="mes-restart" style="margin-top:14px;padding:9px 18px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:12.5px;cursor:pointer;font-family:\'Archivo\',sans-serif;">↺ Recommencer le guide</button>' +
+        "</div>";
+      host.querySelector("#mes-restart").addEventListener("click", function () { mesStep = 0; renderMesBot(); });
+      return;
+    }
+    var pct = Math.round((mesStep / total) * 100);
+    host.innerHTML =
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">' +
+      '<div style="flex:1;height:6px;border-radius:999px;background:rgba(120,150,200,.15);overflow:hidden;"><div style="width:' + pct + '%;height:100%;background:linear-gradient(90deg,#2f7bff,#4d8dff);"></div></div>' +
+      '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;color:#7fadff;">Étape ' + (mesStep + 1) + "/" + total + "</span></div>" +
+      '<div style="display:flex;gap:12px;align-items:flex-start;">' +
+      '<span style="width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:17px;background:rgba(47,123,255,.15);border:1px solid rgba(77,141,255,.45);">🤖</span>' +
+      '<div style="flex:1;padding:14px 18px;border-radius:4px 14px 14px 14px;background:rgba(47,123,255,.12);border:1px solid rgba(77,141,255,.3);font-size:14px;line-height:1.65;color:#dfe6f2;">' + esc(mesSteps[mesStep]) + "</div></div>" +
+      '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap;">' +
+      (mesStep > 0 ? '<button type="button" id="mes-prev" style="padding:11px 20px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:13px;cursor:pointer;font-family:\'Archivo\',sans-serif;">← Étape précédente</button>' : "") +
+      '<button type="button" id="mes-next" class="btn-primary" style="padding:11px 22px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;box-shadow:0 6px 20px rgba(47,123,255,.35);">✅ C\'est fait, étape suivante</button>' +
+      "</div>";
+    var prev = host.querySelector("#mes-prev");
+    if (prev) prev.addEventListener("click", function () { mesStep--; renderMesBot(); });
+    host.querySelector("#mes-next").addEventListener("click", function () { mesStep++; renderMesBot(); });
   }
 
   /* ---------- Messagerie / tickets ---------- */

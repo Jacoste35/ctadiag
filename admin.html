@@ -30,6 +30,7 @@
       <span class="app-label" style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.16em;color:#38d47a;text-transform:uppercase;">Administration</span>
     </a>
     <div style="display:flex;align-items:center;gap:12px;">
+      <button id="notif-btn" class="btn-ghost" title="Activer les notifications sur cet appareil" style="padding:9px 14px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:13px;cursor:pointer;">🔔</button>
       <a href="messagerie.html" class="btn-ghost" style="padding:9px 18px;border-radius:999px;border:1px solid rgba(77,141,255,.4);color:#7fadff;font-weight:700;font-size:13px;">💬 Messagerie</a>
       <a href="espace.html" class="btn-ghost hide-mobile" style="padding:9px 18px;border-radius:999px;border:1px solid rgba(150,180,230,.3);color:#dfe6f2;font-weight:700;font-size:13px;">Vue client</a>
       <button id="logout" class="btn-ghost" style="padding:9px 18px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:13px;cursor:pointer;">Se déconnecter</button>
@@ -211,7 +212,11 @@
 
     <!-- Matériel -->
     <section id="tab-materiel" hidden>
-      <p style="margin:0 0 16px;color:#9aa6ba;font-size:14px;">Votre parc de valises, bancs et stations. Suivez où se trouve chaque équipement : disponible, prêté ou loué à un client, en intervention. Le matériel disponible est proposé dans le formulaire de planification.</p>
+      <div id="eqr-panel" hidden class="panel-card" style="overflow:hidden;margin-bottom:18px;border-color:rgba(255,190,80,.35);">
+        <div style="padding:14px 24px;background:rgba(255,190,80,.08);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#ffbe50;">📥 Demandes de prêt / location reçues</div>
+        <div id="eqr-admin-list"></div>
+      </div>
+      <p style="margin:0 0 16px;color:#9aa6ba;font-size:14px;">Votre parc de valises, bancs et stations. Suivez où se trouve chaque équipement : disponible, en prêt ou en location chez un client, en intervention. Le matériel disponible est proposé dans le formulaire de planification.</p>
       <form id="eq-form" class="panel-card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;padding:22px;margin-bottom:18px;">
         <input id="eq-name" class="input" placeholder="Nom du matériel * (ex. MaxiSys MS909)" required>
         <input id="eq-ref" class="input" placeholder="N° de série / référence">
@@ -232,6 +237,24 @@
         <div id="prodadmin-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
       </div>
       <p style="margin:14px 4px 0;font-size:12.5px;color:#5f6d84;">« Mon prix net » est votre prix d'achat : il n'est visible que de vous (les distributeurs ne voient que le tarif public conseillé et leur prix net). Renseignez-le pour suivre vos marges.</p>
+
+      <!-- Guides du bot de mise en service à distance -->
+      <div style="margin:30px 0 14px;">
+        <h2 style="margin:0 0 8px;font-size:17px;font-weight:900;">🛰️ Mise en service à distance</h2>
+        <p style="margin:0;color:#9aa6ba;font-size:14px;line-height:1.6;">Écrivez ici les guides pas à pas du bot (une étape par ligne). Activez ensuite « Mise en service à distance » sur la fiche d'un client (onglet Clients) : l'onglet apparaît dans son espace et le bot le guide appareil par appareil.</p>
+      </div>
+      <form id="sg-form" class="panel-card" style="display:flex;flex-direction:column;gap:12px;padding:22px;margin-bottom:18px;">
+        <div id="sg-mode" style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;color:#7fadff;text-transform:uppercase;">Nouveau guide</div>
+        <input id="sg-device" class="input" maxlength="120" placeholder="Appareil concerné (ex. : MS909, ITS600, station ATF) *" required>
+        <textarea id="sg-steps" class="input" rows="6" maxlength="8000" placeholder="Les étapes, une par ligne :&#10;Chargez la valise 30 minutes…&#10;Maintenez le bouton d'alimentation 5 secondes…" required style="resize:vertical;"></textarea>
+        <div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;">
+          <button type="button" id="sg-cancel" hidden class="btn-ghost" style="padding:11px 22px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:13.5px;cursor:pointer;">Annuler</button>
+          <button type="submit" class="btn-primary" style="padding:11px 26px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;">Enregistrer le guide</button>
+        </div>
+      </form>
+      <div class="panel-card" style="overflow:hidden;">
+        <div id="sg-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
+      </div>
     </section>
 
     <!-- Agenda -->
@@ -251,7 +274,20 @@
         </div>
         <p style="margin:14px 0 0;font-size:12px;line-height:1.7;color:#5f6d84;"><strong style="color:#8b98ae;">iPhone</strong> : « S'abonner » ouvre directement le calendrier (ou Réglages → Calendrier → Comptes → Ajouter un compte → Autre → Ajouter un cal. avec abonnement, puis coller le lien).<br><strong style="color:#8b98ae;">Google Agenda</strong> : sur ordinateur, Autres agendas → + → À partir de l'URL, puis coller le lien ; il apparaît ensuite sur le téléphone Android.</p>
       </div>
-      <p style="margin:0 0 16px;color:#9aa6ba;font-size:14px;">Jours bloqués : ils apparaissent immédiatement comme indisponibles dans le calendrier de prise de rendez-vous du site.</p>
+      <!-- Calendrier mensuel (au format de l'application Inter Colis Services) -->
+      <div class="panel-card" style="overflow:hidden;margin-bottom:22px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;background:rgba(47,123,255,.08);">
+          <button id="cal-prev" type="button" class="btn-ghost" style="padding:8px 14px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:14px;cursor:pointer;">←</button>
+          <span id="cal-label" style="font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:.08em;color:#dfe6f2;font-weight:700;text-transform:capitalize;"></span>
+          <button id="cal-next" type="button" class="btn-ghost" style="padding:8px 14px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:14px;cursor:pointer;">→</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);padding:10px 12px 0;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.08em;color:#5f6d84;text-transform:uppercase;text-align:center;">
+          <span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Dim</span>
+        </div>
+        <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:8px 12px 12px;"></div>
+        <div id="cal-day-detail" hidden style="border-top:1px solid rgba(120,150,200,.12);padding:16px 20px;"></div>
+      </div>
+      <p style="margin:0 0 16px;color:#9aa6ba;font-size:14px;">Touchez un jour pour voir ses interventions et le bloquer ou le débloquer. Les jours bloqués apparaissent immédiatement comme indisponibles dans le calendrier de prise de rendez-vous du site.</p>
       <form id="blocked-add" class="panel-card blocked-add-form" style="display:grid;grid-template-columns:1fr 2fr auto;gap:12px;padding:18px;margin-bottom:18px;align-items:center;">
         <div style="display:flex;flex-direction:column;gap:5px;">
           <label for="b-day" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#7fadff;text-transform:uppercase;">Jour à bloquer *</label>
