@@ -37,11 +37,6 @@
       </a>
       <span class="nav-sep" style="width:1px;height:26px;background:linear-gradient(rgba(120,150,200,.05),rgba(120,150,200,.4),rgba(120,150,200,.05));"></span>
       <nav class="nav-links" style="display:flex;gap:10px;align-items:center;">
-        <a href="#services" class="navlink">Prestations</a>
-        <a href="#tarifs" class="navlink">Tarifs</a>
-        <a href="#apropos" class="navlink">À propos</a>
-        <a href="#temoignages" class="navlink">Témoignages</a>
-        <a href="#rdv" class="navlink">Rendez-vous</a>
         <a href="#boutique" class="navlink">Boutique</a>
         <a href="connexion.html" class="navlink" style="color:#7fadff;">Se connecter</a>
       </nav>
@@ -54,11 +49,6 @@
     </div>
   </header>
   <nav id="nav-mobile" class="nav-mobile">
-    <a href="#services">Prestations</a>
-    <a href="#tarifs">Tarifs</a>
-    <a href="#apropos">À propos</a>
-    <a href="#temoignages">Témoignages</a>
-    <a href="#rdv">Rendez-vous</a>
     <a href="#boutique">Boutique</a>
     <a href="connexion.html">Se connecter</a>
     <a href="#contact">Demander un devis</a>
@@ -454,9 +444,10 @@
           <input id="f-phone" type="tel" placeholder="Téléphone *" class="input" autocomplete="tel">
         </div>
         <input id="f-email" type="email" placeholder="E-mail *" class="input" autocomplete="email">
-        <div class="form-2col" style="display:grid;grid-template-columns:2fr 1fr;gap:16px;">
-          <input id="f-address" placeholder="Adresse (rue, ville)" class="input" autocomplete="street-address">
+        <input id="f-address" placeholder="Adresse (n° et rue)" class="input" autocomplete="street-address">
+        <div class="form-2col" style="display:grid;grid-template-columns:1fr 2fr;gap:16px;">
           <input id="f-zip" placeholder="Code postal" class="input" inputmode="numeric" autocomplete="postal-code">
+          <input id="f-city" placeholder="Ville" class="input" autocomplete="address-level2">
         </div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.12em;color:#5f6d84;text-transform:uppercase;">Vous êtes :</span>

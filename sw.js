@@ -3,7 +3,7 @@
    arrivent immédiatement quand on est en ligne, le cache sert de secours hors
    ligne) ; cache d'abord pour les images. Les appels au backend (autre origine)
    ne sont jamais interceptés. */
-var CACHE = "cta-app-v3";
+var CACHE = "cta-app-v4";
 var PRECACHE = [
   "./",
   "./index.html",
@@ -41,6 +41,29 @@ self.addEventListener("activate", function (e) {
       return Promise.all(keys.filter(function (k) { return k !== CACHE; }).map(function (k) { return caches.delete(k); }));
     }).then(function () { return self.clients.claim(); })
   );
+});
+
+// Notifications push (messagerie CTA)
+self.addEventListener("push", function (e) {
+  var data = {};
+  try { data = e.data ? e.data.json() : {}; } catch (err) { /* payload non JSON */ }
+  e.waitUntil(self.registration.showNotification(data.title || "CTA · Conseil Technique Auto", {
+    body: data.body || "",
+    tag: data.tag || undefined,
+    icon: "./assets/icon-192.png",
+    badge: "./assets/icon-192.png",
+    data: { url: data.url || "./espace.html" }
+  }));
+});
+self.addEventListener("notificationclick", function (e) {
+  e.notification.close();
+  var url = (e.notification.data && e.notification.data.url) || "./espace.html";
+  e.waitUntil(clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (list) {
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].url.indexOf(url.replace("./", "/")) !== -1) return list[i].focus();
+    }
+    return clients.openWindow(url);
+  }));
 });
 
 self.addEventListener("fetch", function (e) {

@@ -260,7 +260,7 @@
       "\nContact : " + (payload.first_name + " " + payload.last_name).trim() +
       "\nTéléphone : " + payload.phone +
       "\nE-mail : " + payload.contact +
-      "\nAdresse : " + [payload.address, payload.postal_code].filter(Boolean).join(", ") +
+      "\nAdresse : " + [payload.address, payload.postal_code, payload.city].filter(Boolean).join(", ") +
       "\nProfil : " + (payload.client_kind === "distributeur" ? "Distributeur" : payload.client_kind === "garage" ? "Garage / atelier" : "non précisé") +
       "\nPrestations : " + payload.services.join(", ") +
       "\nRendez-vous souhaité : " + (payload.rdv_day ? fmtDay(payload.rdv_day) + (payload.rdv_slot ? " à " + payload.rdv_slot : "") : "aucun créneau sélectionné") +
@@ -282,6 +282,7 @@
         contact: document.getElementById("f-email").value.trim(),
         address: document.getElementById("f-address").value.trim(),
         postal_code: document.getElementById("f-zip").value.trim(),
+        city: document.getElementById("f-city").value.trim(),
         services: PRESTAS.filter(function (l) { return state.picked[l]; }),
         rdv_day: state.rdvDay,
         rdv_slot: state.rdvSlot,

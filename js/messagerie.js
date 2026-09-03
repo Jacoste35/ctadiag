@@ -165,12 +165,23 @@
           rows.map(function (t) { return ticketItem(t, dim); }).join("");
       }).join("");
   }
+  var STATUS_SECTIONS = [
+    ["ouvert", "🟦 Ouverts"],
+    ["en_cours", "🟨 En cours"],
+    ["resolu", "🟩 Résolus"],
+    ["ferme", "⬛ Fermés"]
+  ];
   function renderTicketList() {
     var host = document.getElementById("at-list");
     var actifs = tickets.filter(function (t) { return !t.archived; });
     var archives = tickets.filter(function (t) { return t.archived; });
     var html = actifs.length
-      ? groupedByClient(actifs, false)
+      ? STATUS_SECTIONS.map(function (sec) {
+          var items = actifs.filter(function (t) { return t.status === sec[0]; });
+          if (!items.length) return "";
+          return '<div style="margin:10px 0 2px;padding:7px 12px;border-radius:10px;background:rgba(47,123,255,.08);font-weight:800;font-size:12.5px;color:#dfe6f2;">' +
+            sec[1] + " (" + items.length + ")</div>" + groupedByClient(items, false);
+        }).join("")
       : '<p style="margin:0;padding:6px;color:#5f6d84;font-size:14px;">Aucun ticket actif.</p>';
     if (archives.length) {
       html += '<button type="button" id="at-toggle-archived" style="margin-top:10px;padding:9px 14px;border-radius:999px;border:1px dashed rgba(120,150,200,.3);background:transparent;color:#8b98ae;font-weight:700;font-size:12.5px;cursor:pointer;font-family:\'Archivo\',sans-serif;text-align:left;">' +
@@ -263,7 +274,9 @@
 
   document.getElementById("at-status").addEventListener("change", function () {
     if (!currentTicket) return;
-    api("cta_tickets?id=eq." + currentTicket, { method: "PATCH", body: { status: this.value } })
+    // Un ticket fermé part automatiquement aux archives
+    var body = this.value === "ferme" ? { status: "ferme", archived: true } : { status: this.value };
+    api("cta_tickets?id=eq." + currentTicket, { method: "PATCH", body: body })
       .then(reloadTickets)
       .catch(function () { showError("Mise à jour du ticket impossible."); });
   });

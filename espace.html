@@ -35,6 +35,8 @@
       <span id="p-type" hidden class="badge badge-blue"></span>
       <span id="p-company" class="hide-mobile" style="font-size:13.5px;font-weight:700;color:#9fb6d8;white-space:nowrap;"></span>
       <a id="admin-link" hidden href="admin.html" class="btn-ghost" style="padding:9px 18px;border-radius:999px;border:1px solid rgba(56,212,122,.4);color:#38d47a;font-weight:700;font-size:13px;">Administration</a>
+      <button id="notif-btn" class="btn-ghost" title="Activer les notifications sur cet appareil" style="padding:9px 14px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:13px;cursor:pointer;">🔔</button>
+      <button id="profile-btn" class="btn-ghost" title="Mon profil" style="padding:9px 14px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:13px;cursor:pointer;">⚙️<span class="app-label"> Profil</span></button>
       <button id="logout" class="btn-ghost" style="padding:9px 18px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:13px;cursor:pointer;">Se déconnecter</button>
     </div>
   </header>
@@ -101,6 +103,8 @@
       <button class="tab" data-tab="documents" id="tab-btn-documents">Devis &amp; factures</button>
       <button class="tab" data-tab="grille">Grille distributeur</button>
       <button class="tab" data-tab="clients" id="tab-btn-clients" hidden>Mes clients</button>
+      <button class="tab" data-tab="materiel">Matériel</button>
+      <button class="tab" data-tab="mes" id="tab-btn-mes" hidden>Mise en service</button>
       <button class="tab" data-tab="messagerie">Messagerie</button>
     </div>
 
@@ -161,12 +165,54 @@
         <input id="ec-contact" class="input" placeholder="Contact">
         <input id="ec-phone" class="input" placeholder="Téléphone">
         <input id="ec-email" class="input" type="email" placeholder="E-mail">
-        <input id="ec-address" class="input" placeholder="Adresse postale" style="grid-column:1 / -1;">
+        <input id="ec-address" class="input" placeholder="Adresse (n° et rue)" style="grid-column:1 / -1;">
+        <input id="ec-zip" class="input" placeholder="Code postal" inputmode="numeric">
+        <input id="ec-city" class="input" placeholder="Ville">
         <input id="ec-notes" class="input" placeholder="Notes (matériel, contexte…)">
         <button type="submit" class="btn-primary" style="padding:13px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;">+ Créer la fiche</button>
       </form>
       <div class="panel-card" style="overflow:hidden;">
         <div id="ec-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
+      </div>
+    </section>
+
+    <!-- Matériel : location / prêt -->
+    <section id="tab-materiel" hidden>
+      <p style="margin:0 0 16px;color:#9aa6ba;font-size:14px;">🧰 <strong style="color:#dfe6f2;">Location / Prêt de matériel</strong> : demandez une valise ou un outil de la gamme pour une durée donnée, CTA vous confirme la disponibilité et les conditions.</p>
+      <form id="eqr-form" class="panel-card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;padding:22px;margin-bottom:18px;">
+        <select id="eqr-product" class="input" required style="grid-column:1 / -1;"><option value="">Quel appareil ? *</option></select>
+        <select id="eqr-kind" class="input">
+          <option value="pret">🤝 Prêt</option>
+          <option value="location">💶 Location</option>
+        </select>
+        <select id="eqr-duration" class="input">
+          <option value="">Durée souhaitée</option>
+          <option>1 jour</option>
+          <option>2-3 jours</option>
+          <option>1 semaine</option>
+          <option>2 semaines</option>
+          <option>1 mois</option>
+          <option>Plus d'un mois</option>
+        </select>
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          <label for="eqr-date" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#7fadff;text-transform:uppercase;">Début souhaité</label>
+          <input id="eqr-date" class="input" type="date">
+        </div>
+        <input id="eqr-msg" class="input" placeholder="Précisions (contexte, chantier, urgence…)">
+        <button type="submit" class="btn-primary" style="padding:13px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;">Envoyer la demande</button>
+      </form>
+      <div class="panel-card" style="overflow:hidden;">
+        <div style="padding:14px 24px;background:rgba(47,123,255,.08);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8b98ae;">Mes demandes de prêt / location</div>
+        <div id="eqr-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
+      </div>
+    </section>
+
+    <!-- Mise en service à distance (bot) -->
+    <section id="tab-mes" hidden>
+      <p style="margin:0 0 16px;color:#9aa6ba;font-size:14px;">🛰️ <strong style="color:#dfe6f2;">Mise en service à distance</strong> : choisissez votre appareil, l'assistant vous guide étape par étape. En cas de blocage, ouvrez un ticket : CTA prend le relais.</p>
+      <div class="panel-card" style="padding:24px;">
+        <select id="mes-device" class="input" style="max-width:420px;"><option value="">Quel appareil mettez-vous en service ?</option></select>
+        <div id="mes-bot" style="margin-top:18px;"></div>
       </div>
     </section>
 
@@ -243,7 +289,11 @@
         <input id="irn-contact" class="input" placeholder="Contact">
         <input id="irn-phone" class="input" placeholder="Téléphone">
         <input id="irn-email" class="input" type="email" placeholder="E-mail">
-        <input id="irn-address" class="input" placeholder="Adresse postale">
+        <input id="irn-address" class="input" placeholder="Adresse (n° et rue)">
+        <div style="display:flex;gap:10px;">
+          <input id="irn-zip" class="input" placeholder="Code postal" inputmode="numeric" style="flex:1;">
+          <input id="irn-city" class="input" placeholder="Ville" style="flex:2;">
+        </div>
         <span style="font-size:12px;color:#5f6d84;">La fiche est créée dans « Mes clients » et transmise à CTA avec la demande.</span>
       </div>
       <div style="display:flex;flex-direction:column;gap:5px;">
@@ -251,7 +301,8 @@
         <input id="ir-date" class="input" type="date">
       </div>
       <select id="ir-slot" class="input"></select>
-      <input id="ir-equip" class="input" placeholder="Matériel concerné (ex. MS909 neuve)">
+      <select id="ir-equip" class="input"><option value="">Matériel concerné (optionnel)</option></select>
+      <input id="ir-equip-autre" class="input" placeholder="Précisez le matériel" hidden>
       <input id="ir-loc" class="input" placeholder="Lieu (auto : adresse de la fiche client)">
       <textarea id="ir-msg" class="input" rows="3" maxlength="2000" placeholder="Précisions : contexte, contraintes d'accès…" style="resize:vertical;"></textarea>
       <button type="submit" class="btn-primary" style="padding:14px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:14.5px;cursor:pointer;box-shadow:0 8px 26px rgba(47,123,255,.35);">Envoyer la demande</button>
@@ -280,6 +331,27 @@
       <button type="submit" class="btn-primary" style="padding:14px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:14.5px;cursor:pointer;box-shadow:0 8px 26px rgba(47,123,255,.35);">✍️ Signer et accepter le devis</button>
       <button id="sign-refuse" type="button" style="padding:11px;border-radius:999px;border:1px solid rgba(255,110,110,.35);background:transparent;color:#ff8c8c;font-weight:700;font-size:13px;cursor:pointer;font-family:'Archivo',sans-serif;">Refuser ce devis</button>
       <p id="sign-msg" hidden style="margin:0;text-align:center;font-size:13px;line-height:1.5;color:#ff8c8c;"></p>
+    </form>
+  </div>
+</div>
+
+<!-- Mon profil -->
+<div id="profile-modal" hidden style="position:fixed;inset:0;z-index:97;background:rgba(4,6,10,.86);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;">
+  <div class="panel-card" style="position:relative;overflow:hidden;width:100%;max-width:440px;padding:28px;margin:auto;">
+    <div style="position:absolute;top:-1px;left:24px;right:35%;height:2px;background:linear-gradient(90deg,transparent,#2f7bff,transparent);"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">
+      <h2 style="margin:0;font-size:19px;font-weight:900;">⚙️ Mon profil</h2>
+      <button id="profile-close" type="button" class="btn-ghost" style="padding:6px 12px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:12px;cursor:pointer;">Fermer</button>
+    </div>
+    <p style="margin:0 0 18px;font-size:13px;line-height:1.6;color:#9aa6ba;">Tenez vos coordonnées à jour : elles servent aux rappels de rendez-vous, aux déplacements et à la facturation.</p>
+    <form id="profile-form" style="display:flex;flex-direction:column;gap:12px;">
+      <input id="pf-company" class="input" placeholder="Société / garage">
+      <input id="pf-contact" class="input" placeholder="Nom du contact">
+      <input id="pf-phone" class="input" type="tel" placeholder="Téléphone">
+      <input id="pf-email" class="input" type="email" placeholder="E-mail">
+      <input id="pf-address" class="input" placeholder="Adresse postale (rue, CP, ville)">
+      <button type="submit" class="btn-primary" style="padding:14px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:14.5px;cursor:pointer;box-shadow:0 8px 26px rgba(47,123,255,.35);">Enregistrer</button>
+      <p id="profile-msg" hidden style="margin:0;text-align:center;font-size:13px;line-height:1.5;color:#7fadff;"></p>
     </form>
   </div>
 </div>

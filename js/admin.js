@@ -203,7 +203,7 @@
   }
 
   /* ---------- Données ---------- */
-  var clients = [], quotes = [], interventions = [], grid = [], tickets = [], blockedDates = [], equipment = [], endClients = [], iReqs = [], products = [];
+  var clients = [], quotes = [], interventions = [], grid = [], tickets = [], blockedDates = [], equipment = [], endClients = [], iReqs = [], products = [], eqReqs = [], setupGuides = [];
   var catFilter = "";
   var typeFilter = "";   // "" | "direct" | "distributeur"
   var clientFilter = ""; // "" ou id d'un client
@@ -495,21 +495,39 @@
       api("blocked_dates?select=*&order=day.asc"),
       api("cta_equipment?select=*&order=name.asc"),
       api("cta_end_clients?select=*&order=company_name.asc"),
-      api("cta_intervention_requests?select=*,cta_end_clients(company_name,address)&order=created_at.desc"),
-      api("cta_products?select=*,cta_product_admin_costs(admin_price_ht)&order=sort.asc")
+      api("cta_intervention_requests?select=*,cta_end_clients(company_name,address,postal_code,city)&order=created_at.desc"),
+      api("cta_products?select=*,cta_product_admin_costs(admin_price_ht)&order=sort.asc"),
+      api("cta_equipment_requests?select=*&order=created_at.desc"),
+      api("cta_setup_guides?select=*&order=created_at.asc")
     ]).then(function (res) {
       clients = res[0]; quotes = res[1]; interventions = res[2];
       grid = res[3]; tickets = res[4]; blockedDates = res[5];
       equipment = res[6]; endClients = res[7]; iReqs = res[8]; products = res[9];
+      eqReqs = res[10]; setupGuides = res[11];
       refreshStats(); renderToday(); renderWeek(); renderCA();
       renderQuotes(); renderClients(); renderClientSelects();
       renderInterventions(); renderGrid(); renderBlocked();
       renderEquipment(); renderIntervFormOptions(); renderProductsAdmin();
       renderIReqs(); renderClientFilter(); renderCatFilter(); renderEndClientsAdmin();
+      renderEqReqsAdmin(); renderSetupGuides(); renderCalendar();
     }).catch(function () {
       showError("Chargement impossible : vérifiez votre connexion ou reconnectez-vous.");
     });
   }
+
+  /* ---------- Notifications push ---------- */
+  var notifBtn = document.getElementById("notif-btn");
+  if ("Notification" in window && Notification.permission === "granted") notifBtn.textContent = "🔔✓";
+  notifBtn.addEventListener("click", function () {
+    window.ctaEnablePush(uid, function (body) {
+      return api("cta_push_subscriptions?on_conflict=endpoint", {
+        method: "POST", body: body, prefer: "resolution=merge-duplicates"
+      });
+    }).then(function () {
+      notifBtn.textContent = "🔔✓";
+      window.alert("Notifications activées sur cet appareil ✓\nVous serez prévenu des nouveaux messages clients.");
+    }).catch(function (e) { window.alert("Notifications : " + e.message); });
+  });
 
   /* ---------- Demandes de devis (deux tableaux : garages / distributeurs) ---------- */
   var showArchQ = { garage: false, distrib: false };
@@ -539,7 +557,7 @@
       [[q.first_name, q.last_name].filter(Boolean).join(" ") ? "👤 " + [q.first_name, q.last_name].filter(Boolean).join(" ") : "",
        q.phone ? "📞 " + q.phone : "",
        "✉️ " + q.contact,
-       [q.address, q.postal_code].filter(Boolean).length ? "📍 " + [q.address, q.postal_code].filter(Boolean).join(", ") : ""
+       [q.address, q.postal_code, q.city].filter(Boolean).length ? "📍 " + [q.address, q.postal_code, q.city].filter(Boolean).join(", ") : ""
       ].filter(Boolean).map(esc).join(" · ") + "</div>" +
       (services ? '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">' + services + "</div>" : "") +
       (q.rdv_day ? '<div style="margin-top:8px;font-size:13px;color:#c9d4e6;">📅 RDV souhaité : <strong>' + esc(fmtDate(q.rdv_day)) + (q.rdv_slot ? " à " + esc(q.rdv_slot) : "") + "</strong></div>" : "") +
@@ -611,7 +629,7 @@
     document.getElementById("c-company").value = q.name || "";
     document.getElementById("c-contact").value = [q.first_name, q.last_name].filter(Boolean).join(" ");
     document.getElementById("c-phone").value = q.phone || "";
-    document.getElementById("c-address").value = [q.address, q.postal_code].filter(Boolean).join(", ");
+    document.getElementById("c-address").value = [q.address, [q.postal_code, q.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
     document.getElementById("c-type").value = q.client_kind === "distributeur" ? "distributeur" : "direct";
     clientForm.scrollIntoView({ behavior: "smooth", block: "center" });
     document.getElementById("c-email").focus();
@@ -625,31 +643,44 @@
       }).catch(function () { showError("Mise à jour impossible."); });
   }
 
-  /* ---------- Clients ---------- */
+  /* ---------- Clients (une fiche-carte par client) ---------- */
+  function fieldBlock(label, inner) {
+    return '<div style="display:flex;flex-direction:column;gap:4px;">' +
+      '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;letter-spacing:.12em;color:#5f6d84;text-transform:uppercase;">' + label + "</span>" + inner + "</div>";
+  }
   function renderClients() {
     var host = document.getElementById("clients-list");
     if (!clients.length) {
+      host.style.cssText = "";
       host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Aucun client.</p>';
       return;
     }
+    host.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;padding:18px;";
     host.innerHTML = clients.map(function (c) {
       var isAdmin = c.role === "admin";
-      return '<div class="list-row" data-client-row="' + c.id + '" style="align-items:center;">' +
-        '<div style="min-width:200px;">' +
-        '<a href="mailto:' + esc(c.email || "") + '" style="font-weight:800;font-size:14.5px;">' + esc(c.email || "") + "</a>" +
-        '<div style="margin-top:4px;display:flex;gap:6px;align-items:center;">' + typeBadge(c.client_type) +
-        (isAdmin ? ' <span class="badge badge-amber">Admin</span>' : "") +
-        (c.address ? ' <a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(c.address) + '" target="_blank" rel="noopener" title="Itinéraire" style="font-size:13px;">🗺️ Itinéraire</a>' : "") +
-        "</div></div>" +
-        '<input class="input" data-f="company_name" value="' + esc(c.company_name || "") + '" placeholder="Société" style="flex:1;min-width:140px;padding:10px 12px;font-size:13.5px;">' +
-        '<input class="input" data-f="contact_name" value="' + esc(c.contact_name || "") + '" placeholder="Contact" style="width:130px;padding:10px 12px;font-size:13.5px;">' +
-        '<input class="input" data-f="phone" value="' + esc(c.phone || "") + '" placeholder="Téléphone" style="width:130px;padding:10px 12px;font-size:13.5px;">' +
-        '<input class="input" data-f="address" value="' + esc(c.address || "") + '" placeholder="Adresse postale" style="flex:1 1 100%;min-width:200px;padding:10px 12px;font-size:13.5px;">' +
-        '<select class="input" data-f="client_type" style="padding:10px 12px;width:auto;font-size:13px;">' +
-        '<option value="direct"' + (c.client_type === "direct" ? " selected" : "") + ">Direct</option>" +
-        '<option value="distributeur"' + (c.client_type === "distributeur" ? " selected" : "") + ">Distributeur</option></select>" +
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-        '<button ' + GHOST_BTN + ' data-client-save="' + c.id + '">Enregistrer</button>' +
+      var nb = interventions.filter(function (i) { return i.partner_id === c.id; }).length;
+      return '<div data-client-row="' + c.id + '" style="border-radius:16px;background:rgba(13,17,25,.75);border:1px solid rgba(120,150,200,.18);padding:20px;display:flex;flex-direction:column;gap:12px;">' +
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">' +
+        '<div><div style="font-weight:900;font-size:16px;">' + esc(c.company_name || c.email || "?") + "</div>" +
+        '<a href="mailto:' + esc(c.email || "") + '" style="font-size:12.5px;color:#7fadff;">' + esc(c.email || "") + "</a></div>" +
+        '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">' + typeBadge(c.client_type) +
+        (isAdmin ? ' <span class="badge badge-amber">Admin</span>' : "") + "</div></div>" +
+        '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#5f6d84;">' + nb + " intervention" + (nb > 1 ? "s" : "") +
+        (c.address ? ' · <a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(c.address) + '" target="_blank" rel="noopener" style="font-size:12px;">🗺️ Itinéraire</a>' : "") + "</div>" +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+        fieldBlock("Société", '<input class="input" data-f="company_name" value="' + esc(c.company_name || "") + '" style="padding:9px 12px;font-size:13px;">') +
+        fieldBlock("Contact", '<input class="input" data-f="contact_name" value="' + esc(c.contact_name || "") + '" style="padding:9px 12px;font-size:13px;">') +
+        fieldBlock("Téléphone", '<input class="input" data-f="phone" value="' + esc(c.phone || "") + '" style="padding:9px 12px;font-size:13px;">') +
+        fieldBlock("Type de client", '<select class="input" data-f="client_type" style="padding:9px 12px;font-size:13px;">' +
+          '<option value="direct"' + (c.client_type === "direct" ? " selected" : "") + ">Direct</option>" +
+          '<option value="distributeur"' + (c.client_type === "distributeur" ? " selected" : "") + ">Distributeur</option></select>") +
+        "</div>" +
+        fieldBlock("Adresse postale", '<input class="input" data-f="address" value="' + esc(c.address || "") + '" placeholder="Rue, CP, ville" style="padding:9px 12px;font-size:13px;">') +
+        '<label style="display:flex;align-items:center;gap:10px;font-size:13px;color:#c9d4e6;cursor:pointer;padding:10px 12px;border-radius:10px;background:rgba(47,123,255,.06);border:1px solid rgba(77,141,255,.2);">' +
+        '<input type="checkbox" class="client-remote"' + (c.remote_setup_enabled ? " checked" : "") + ' style="accent-color:#2f7bff;">' +
+        "🛰️ Mise en service à distance activée</label>" +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;">' +
+        '<button class="btn-primary" data-client-save="' + c.id + '" style="padding:9px 18px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:12.5px;cursor:pointer;">Enregistrer</button>' +
         '<button ' + GHOST_BTN + ' data-client-pass="' + c.id + '">Mot de passe</button>' +
         (isAdmin ? "" : '<button ' + DANGER_BTN + ' data-client-del="' + c.id + '">Supprimer</button>') +
         "</div></div>";
@@ -659,6 +690,7 @@
         var row = host.querySelector('[data-client-row="' + b.dataset.clientSave + '"]');
         var body = {};
         row.querySelectorAll("[data-f]").forEach(function (inp) { body[inp.dataset.f] = inp.value.trim() || null; });
+        body.remote_setup_enabled = row.querySelector(".client-remote").checked;
         api("cta_partners?id=eq." + b.dataset.clientSave, { method: "PATCH", body: body })
           .then(function () {
             var c = clients.find(function (x) { return x.id === b.dataset.clientSave; });
@@ -892,9 +924,26 @@
       });
     });
   }
+  // Type sélectionné : le prix préconfiguré de la grille s'applique automatiquement
+  // (prix distributeur ou tarif public selon le client choisi), modifiable ensuite.
+  function applyPresetPrice() {
+    var cat = document.getElementById("iv-type").value;
+    var amount = document.getElementById("iv-amount");
+    if (!cat || cat === "__autre") return;
+    if (amount.value !== "" && amount.dataset.auto !== "1") return;
+    var distrib = typeOfPartner(document.getElementById("iv-client").value) === "distributeur";
+    var prices = grid
+      .filter(function (g) { return g.category === cat && (distrib ? g.partner_price_ht : g.public_price_ht) != null; })
+      .map(function (g) { return Number(distrib ? g.partner_price_ht : g.public_price_ht); });
+    if (!prices.length) return;
+    amount.value = Math.min.apply(null, prices);
+    amount.dataset.auto = "1";
+  }
+  document.getElementById("iv-amount").addEventListener("input", function () { this.dataset.auto = "0"; });
   // Type / matériel : « Autre… » fait apparaître un champ libre
   document.getElementById("iv-type").addEventListener("change", function () {
     document.getElementById("iv-type-autre").hidden = this.value !== "__autre";
+    applyPresetPrice();
   });
   document.getElementById("iv-equip").addEventListener("change", function () {
     document.getElementById("iv-equip-autre").hidden = this.value !== "__autre";
@@ -910,6 +959,7 @@
   }
   document.getElementById("iv-client").addEventListener("change", function () {
     updateEndClientOptions();
+    applyPresetPrice();
     var c = clients.find(function (x) { return x.id === document.getElementById("iv-client").value; });
     var loc = document.getElementById("iv-loc");
     if (c && c.address && (!loc.value.trim() || loc.dataset.auto === "1")) {
@@ -1066,8 +1116,9 @@
     }
     var fiche = r.end_client_id ? endClients.find(function (e) { return e.id === r.end_client_id; }) : null;
     var partner = clients.find(function (c) { return c.id === r.partner_id; });
+    var ficheAddr = fiche ? [fiche.address, [fiche.postal_code, fiche.city].filter(Boolean).join(" ")].filter(Boolean).join(", ") : "";
     var loc = document.getElementById("iv-loc");
-    loc.value = r.location || (fiche && fiche.address) || (partner && partner.address) || "";
+    loc.value = r.location || ficheAddr || (partner && partner.address) || "";
     loc.dataset.auto = "0";
     document.getElementById("iv-notes").value = r.message || "";
     var p = distribPriceFor(r.category);
@@ -1098,7 +1149,8 @@
         '<button ' + GHOST_BTN + ' data-ec-history="' + e.id + '">' + (isOpen ? "Masquer l\'historique" : "Historique (" + history.length + ")") + "</button>" +
         "</div>" +
         '<div style="font-size:12.5px;color:#93a0b5;">' +
-        [e.contact_name ? "👤 " + e.contact_name : "", e.phone ? "📞 " + e.phone : "", e.email ? "✉️ " + e.email : "", e.address ? "📍 " + e.address : ""].filter(Boolean).map(esc).join(" · ") +
+        [e.contact_name ? "👤 " + e.contact_name : "", e.phone ? "📞 " + e.phone : "", e.email ? "✉️ " + e.email : "",
+         [e.address, [e.postal_code, e.city].filter(Boolean).join(" ")].filter(Boolean).length ? "📍 " + [e.address, [e.postal_code, e.city].filter(Boolean).join(" ")].filter(Boolean).join(", ") : ""].filter(Boolean).map(esc).join(" · ") +
         (e.notes ? ' · 📝 ' + esc(e.notes) : "") + "</div>" +
         (isOpen
           ? '<div style="width:100%;padding:10px 14px;border-radius:12px;background:rgba(10,13,19,.6);border:1px solid rgba(120,150,200,.15);">' +
@@ -1183,8 +1235,8 @@
   /* ---------- Matériel (inventaire, prêts et locations) ---------- */
   var EQ_STATUS = {
     disponible: ["Disponible", "badge-green"],
-    prete: ["Prêté", "badge-amber"],
-    louee: ["Loué", "badge-blue"],
+    prete: ["En prêt", "badge-amber"],
+    louee: ["En location", "badge-blue"],
     en_intervention: ["En intervention", "badge-amber"],
     indisponible: ["Indisponible", "badge-grey"]
   };
@@ -1308,6 +1360,265 @@
       });
     });
   }
+
+  /* ---------- Demandes de prêt / location de matériel ---------- */
+  var EQR_STATUS = {
+    nouvelle: ["Nouvelle", "badge-blue"], acceptee: ["Acceptée", "badge-green"],
+    refusee: ["Refusée", "badge-grey"], terminee: ["Terminée", "badge-grey"]
+  };
+  function renderEqReqsAdmin() {
+    var panel = document.getElementById("eqr-panel");
+    if (!panel) return;
+    var visible = eqReqs.filter(function (r) { return r.status === "nouvelle" || r.status === "acceptee"; });
+    panel.hidden = !visible.length;
+    if (!visible.length) return;
+    document.getElementById("eqr-admin-list").innerHTML = visible.map(function (r) {
+      var st = EQR_STATUS[r.status] || [r.status, "badge-grey"];
+      return '<div class="list-row" style="align-items:flex-start;">' +
+        '<span class="badge ' + (r.kind === "location" ? "badge-amber" : "badge-blue") + '">' + (r.kind === "location" ? "💶 Location" : "🤝 Prêt") + "</span>" +
+        '<div style="flex:1;min-width:220px;">' +
+        '<div style="font-weight:800;font-size:14px;">' + esc(r.product_name) + ' <span style="font-weight:600;color:#7fadff;">· ' + esc(clientName(r.partner_id)) + "</span></div>" +
+        '<div style="margin-top:3px;font-size:12.5px;color:#93a0b5;">' +
+        [r.duration ? "⏱️ " + r.duration : "", r.start_date ? "📅 à partir du " + fmtDate(r.start_date) : ""].filter(Boolean).map(esc).join(" · ") + "</div>" +
+        (r.message ? '<div style="margin-top:3px;font-size:12.5px;color:#8b98ae;">💬 ' + esc(r.message) + "</div>" : "") +
+        '<div style="margin-top:3px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#5f6d84;">Reçue le ' + esc(fmtDateTime(r.created_at)) + "</div></div>" +
+        '<span class="badge ' + st[1] + '">' + st[0] + "</span>" +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+        (r.status === "nouvelle"
+          ? '<button class="btn-primary" data-eqr-accept="' + r.id + '" style="padding:8px 16px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:12px;cursor:pointer;">✓ Accepter</button>' +
+            '<button ' + DANGER_BTN + ' data-eqr-refuse="' + r.id + '">Refuser</button>'
+          : '<button ' + GHOST_BTN + ' data-eqr-done="' + r.id + '">Matériel rendu ✓</button>') +
+        "</div></div>";
+    }).join("");
+    function setEqrStatus(id, status, extra) {
+      api("cta_equipment_requests?id=eq." + id, { method: "PATCH", body: { status: status } })
+        .then(function () {
+          eqReqs.find(function (x) { return x.id === id; }).status = status;
+          renderEqReqsAdmin();
+          if (extra) extra();
+        }).catch(function () { showError("Mise à jour impossible."); });
+    }
+    var list = document.getElementById("eqr-admin-list");
+    list.querySelectorAll("[data-eqr-accept]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var r = eqReqs.find(function (x) { return x.id === b.dataset.eqrAccept; });
+        setEqrStatus(b.dataset.eqrAccept, "acceptee", function () {
+          // Bascule le matériel correspondant de l'inventaire en prêt / location
+          var eq = equipment.find(function (e) {
+            return e.status === "disponible" && e.name.toLowerCase().indexOf(r.product_name.toLowerCase().split(" ")[0]) !== -1;
+          });
+          if (eq && window.confirm("Passer « " + eq.name + " » en " + (r.kind === "location" ? "location" : "prêt") + " chez " + clientName(r.partner_id) + " dans l'inventaire ?")) {
+            api("cta_equipment?id=eq." + eq.id, {
+              method: "PATCH",
+              body: { status: r.kind === "location" ? "louee" : "prete", holder_partner_id: r.partner_id, since: isoToday() }
+            }).then(function () {
+              Object.assign(eq, { status: r.kind === "location" ? "louee" : "prete", holder_partner_id: r.partner_id, since: isoToday() });
+              renderEquipment(); renderIntervFormOptions();
+            }).catch(function () { showError("Inventaire non mis à jour."); });
+          }
+        });
+      });
+    });
+    list.querySelectorAll("[data-eqr-refuse]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        if (!window.confirm("Refuser cette demande ? Le client verra le refus dans son espace.")) return;
+        setEqrStatus(b.dataset.eqrRefuse, "refusee");
+      });
+    });
+    list.querySelectorAll("[data-eqr-done]").forEach(function (b) {
+      b.addEventListener("click", function () { setEqrStatus(b.dataset.eqrDone, "terminee"); });
+    });
+  }
+
+  /* ---------- Guides du bot de mise en service à distance ---------- */
+  var editingGuide = null;
+  function renderSetupGuides() {
+    var host = document.getElementById("sg-list");
+    if (!host) return;
+    if (!setupGuides.length) {
+      host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Aucun guide : créez le premier ci-dessus (une étape par ligne).</p>';
+      return;
+    }
+    host.innerHTML = setupGuides.map(function (g) {
+      var steps = String(g.steps).split("\n").filter(function (s) { return s.trim(); });
+      return '<div class="list-row" style="align-items:flex-start;flex-direction:column;gap:8px;">' +
+        '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;">' +
+        '<span style="font-weight:800;font-size:14.5px;">🛰️ ' + esc(g.device) + "</span>" +
+        '<span class="badge ' + (g.enabled ? "badge-green" : "badge-grey") + '">' + (g.enabled ? "Actif" : "En pause") + "</span>" +
+        '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#5f6d84;">' + steps.length + " étapes</span>" +
+        '<span style="flex:1;"></span>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+        '<button ' + GHOST_BTN + ' data-sg-edit="' + g.id + '">Modifier</button>' +
+        '<button ' + GHOST_BTN + ' data-sg-toggle="' + g.id + '">' + (g.enabled ? "Mettre en pause" : "Réactiver") + "</button>" +
+        '<button ' + DANGER_BTN + ' data-sg-del="' + g.id + '">✕</button>' +
+        "</div></div>" +
+        '<div style="font-size:12.5px;color:#93a0b5;line-height:1.6;">' +
+        steps.slice(0, 3).map(function (s, i) { return (i + 1) + ". " + esc(s.trim()); }).join("<br>") +
+        (steps.length > 3 ? "<br>…" : "") + "</div>" +
+        "</div>";
+    }).join("");
+    host.querySelectorAll("[data-sg-edit]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var g = setupGuides.find(function (x) { return x.id === b.dataset.sgEdit; });
+        if (!g) return;
+        editingGuide = g.id;
+        document.getElementById("sg-mode").textContent = "Modification : " + g.device;
+        document.getElementById("sg-device").value = g.device;
+        document.getElementById("sg-steps").value = g.steps;
+        document.getElementById("sg-cancel").hidden = false;
+        document.getElementById("sg-form").scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    });
+    host.querySelectorAll("[data-sg-toggle]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var g = setupGuides.find(function (x) { return x.id === b.dataset.sgToggle; });
+        if (!g) return;
+        api("cta_setup_guides?id=eq." + g.id, { method: "PATCH", body: { enabled: !g.enabled } })
+          .then(function () { g.enabled = !g.enabled; renderSetupGuides(); })
+          .catch(function () { showError("Mise à jour impossible."); });
+      });
+    });
+    host.querySelectorAll("[data-sg-del]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        if (!window.confirm("Supprimer ce guide de mise en service ?")) return;
+        api("cta_setup_guides?id=eq." + b.dataset.sgDel, { method: "DELETE" })
+          .then(function () {
+            setupGuides = setupGuides.filter(function (x) { return x.id !== b.dataset.sgDel; });
+            renderSetupGuides();
+          }).catch(function () { showError("Suppression impossible."); });
+      });
+    });
+  }
+  function resetSgForm() {
+    editingGuide = null;
+    document.getElementById("sg-form").reset();
+    document.getElementById("sg-mode").textContent = "Nouveau guide";
+    document.getElementById("sg-cancel").hidden = true;
+  }
+  document.getElementById("sg-cancel").addEventListener("click", resetSgForm);
+  document.getElementById("sg-form").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var body = {
+      device: document.getElementById("sg-device").value.trim(),
+      steps: document.getElementById("sg-steps").value.trim()
+    };
+    if (!body.device || !body.steps) return;
+    var req = editingGuide
+      ? api("cta_setup_guides?id=eq." + editingGuide, { method: "PATCH", body: body })
+      : api("cta_setup_guides", { method: "POST", body: body });
+    req.then(function () {
+      resetSgForm();
+      return api("cta_setup_guides?select=*&order=created_at.asc");
+    })
+      .then(function (rows) { setupGuides = rows; renderSetupGuides(); })
+      .catch(function () { showError("Enregistrement du guide impossible."); });
+  });
+
+  /* ---------- Calendrier mensuel (au format Inter Colis Services) ---------- */
+  var calMonth = null; // Date du 1er jour du mois affiché
+  var calSelectedDay = null;
+  function renderCalendar() {
+    var gridHost = document.getElementById("cal-grid");
+    if (!gridHost) return;
+    if (!calMonth) {
+      var n = new Date();
+      calMonth = new Date(n.getFullYear(), n.getMonth(), 1);
+    }
+    var label = calMonth.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+    document.getElementById("cal-label").textContent = label.charAt(0).toUpperCase() + label.slice(1);
+    var today = isoToday();
+    var first = new Date(calMonth);
+    var startOffset = (first.getDay() + 6) % 7; // lundi = 0
+    var daysInMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0).getDate();
+    var cells = "";
+    for (var b = 0; b < startOffset; b++) cells += "<span></span>";
+    for (var d = 1; d <= daysInMonth; d++) {
+      var dayIso = calMonth.getFullYear() + "-" + String(calMonth.getMonth() + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+      var ivs = interventions.filter(function (r) { return r.date === dayIso && r.status !== "annulee"; });
+      var blocked = blockedDates.some(function (x) { return x.day === dayIso; });
+      var isToday = dayIso === today;
+      var selected = calSelectedDay === dayIso;
+      cells += '<button type="button" data-cal-day="' + dayIso + '" style="min-height:56px;padding:6px 4px;border-radius:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:\'Archivo\',sans-serif;' +
+        (selected
+          ? "border:1px solid #4d8dff;background:rgba(47,123,255,.22);"
+          : blocked
+            ? "border:1px solid rgba(255,110,110,.35);background:rgba(255,110,110,.08);"
+            : "border:1px solid rgba(120,150,200,.12);background:rgba(13,17,25,.6);") + '">' +
+        '<span style="font-size:13px;font-weight:' + (isToday ? "900;color:#4d8dff" : "600;color:#c9d4e6") + ';">' + d + "</span>" +
+        (ivs.length
+          ? '<span style="display:flex;gap:2px;flex-wrap:wrap;justify-content:center;">' +
+            ivs.slice(0, 4).map(function () { return '<span style="width:6px;height:6px;border-radius:50%;background:#4d8dff;"></span>'; }).join("") +
+            (ivs.length > 4 ? '<span style="font-size:9px;color:#7fadff;">+' + (ivs.length - 4) + "</span>" : "") + "</span>"
+          : (blocked ? '<span style="font-size:10px;">🚫</span>' : "")) +
+        "</button>";
+    }
+    gridHost.innerHTML = cells;
+    gridHost.querySelectorAll("[data-cal-day]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        calSelectedDay = calSelectedDay === b.dataset.calDay ? null : b.dataset.calDay;
+        renderCalendar();
+      });
+    });
+    renderCalDayDetail();
+  }
+  function renderCalDayDetail() {
+    var host = document.getElementById("cal-day-detail");
+    if (!host) return;
+    host.hidden = !calSelectedDay;
+    if (!calSelectedDay) return;
+    var day = calSelectedDay;
+    var ivs = interventions
+      .filter(function (r) { return r.date === day && r.status !== "annulee"; })
+      .sort(function (a, b) { return (a.time_slot || "99") < (b.time_slot || "99") ? -1 : 1; });
+    var blocked = blockedDates.find(function (x) { return x.day === day; });
+    host.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px;">' +
+      '<span style="font-weight:800;font-size:14.5px;text-transform:capitalize;">' + esc(longDate(day)) + "</span>" +
+      (blocked
+        ? '<button type="button" id="cal-unblock" ' + GHOST_BTN + ">Débloquer ce jour</button>"
+        : '<button type="button" id="cal-block" ' + DANGER_BTN + ">🚫 Bloquer ce jour</button>") +
+      "</div>" +
+      (blocked && blocked.reason ? '<div style="margin-bottom:8px;font-size:12.5px;color:#ff8c8c;">Motif : ' + esc(blocked.reason) + "</div>" : "") +
+      (ivs.length
+        ? ivs.map(function (r) {
+            var c = clients.find(function (x) { return x.id === r.partner_id; }) || {};
+            return '<div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;padding:7px 0;font-size:13px;border-top:1px solid rgba(120,150,200,.08);">' +
+              '<span style="font-family:\'IBM Plex Mono\',monospace;font-weight:700;color:#7fadff;min-width:48px;">' + esc(r.time_slot || "Journée") + "</span>" +
+              '<span style="font-weight:700;color:#dfe6f2;">' + esc(r.type) + "</span>" +
+              '<span style="color:#93a0b5;">· ' + esc(c.company_name || "?") + "</span>" + badge(r.status) + "</div>";
+          }).join("")
+        : '<p style="margin:0;font-size:13px;color:#5f6d84;">Aucune intervention ce jour' + (blocked ? "" : " : la journée est libre") + ".</p>");
+    var blockBtn = host.querySelector("#cal-block");
+    if (blockBtn) blockBtn.addEventListener("click", function () {
+      var reason = window.prompt("Motif du blocage (optionnel : congés, salon, tournée…) :") || null;
+      api("blocked_dates", { method: "POST", body: { day: day, reason: reason } })
+        .then(function () {
+          blockedDates.push({ day: day, reason: reason });
+          blockedDates.sort(function (a, b) { return a.day < b.day ? -1 : 1; });
+          renderBlocked(); renderCalendar();
+        }).catch(function () { showError("Blocage impossible (jour déjà bloqué ?)."); });
+    });
+    var unblockBtn = host.querySelector("#cal-unblock");
+    if (unblockBtn) unblockBtn.addEventListener("click", function () {
+      api("blocked_dates?day=eq." + day, { method: "DELETE" })
+        .then(function () {
+          blockedDates = blockedDates.filter(function (x) { return x.day !== day; });
+          renderBlocked(); renderCalendar();
+        }).catch(function () { showError("Déblocage impossible."); });
+    });
+  }
+  document.getElementById("cal-prev").addEventListener("click", function () {
+    if (!calMonth) return;
+    calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1);
+    calSelectedDay = null;
+    renderCalendar();
+  });
+  document.getElementById("cal-next").addEventListener("click", function () {
+    if (!calMonth) return;
+    calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1);
+    calSelectedDay = null;
+    renderCalendar();
+  });
 
   /* ---------- Synchronisation agenda (flux iCalendar) ---------- */
   function setupCalendarSync() {
