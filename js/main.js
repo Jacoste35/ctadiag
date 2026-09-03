@@ -291,6 +291,7 @@
         website: document.getElementById("f-website").value,
         client_kind: state.kind
       };
+      // Tous les champs sont obligatoires
       if (!payload.first_name || !payload.last_name) {
         setStatus("Merci d'indiquer votre prénom et votre nom.", true);
         return;
@@ -303,8 +304,20 @@
         setStatus("Merci d'indiquer votre numéro de téléphone et votre e-mail.", true);
         return;
       }
+      if (!payload.address || !payload.postal_code || !payload.city) {
+        setStatus("Merci de compléter votre adresse : rue, code postal et ville.", true);
+        return;
+      }
       if (!payload.client_kind) {
         setStatus("Merci d'indiquer si vous êtes un garage / atelier ou un distributeur : nous préparons l'accès qui vous convient.", true);
+        return;
+      }
+      if (!payload.services.length) {
+        setStatus("Merci de sélectionner au moins une prestation concernée par votre projet.", true);
+        return;
+      }
+      if (!payload.message) {
+        setStatus("Merci de décrire votre besoin en quelques mots.", true);
         return;
       }
       if (!payload.consent) {

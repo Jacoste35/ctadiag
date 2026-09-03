@@ -185,22 +185,53 @@
   }).catch(function () { showError("Impossible de vérifier vos droits : reconnectez-vous."); });
 
   /* ---------- Onglets ---------- */
+  var TAB_NAMES = ["demandes", "clients", "interventions", "grille", "materiel", "agenda"];
   var tabs = document.querySelectorAll(".tab");
-  tabs.forEach(function (t) {
-    if (!t.dataset.tab) return; // lien (messagerie dédiée)
-    t.addEventListener("click", function () {
-      tabs.forEach(function (x) { x.classList.toggle("active", x === t); });
-      ["demandes", "clients", "interventions", "grille", "materiel", "agenda"].forEach(function (name) {
-        document.getElementById("tab-" + name).hidden = name !== t.dataset.tab;
-      });
-    });
-  });
-  function showTab(name) {
+  function activateTab(name) {
+    if (TAB_NAMES.indexOf(name) === -1) name = "demandes";
     tabs.forEach(function (x) { x.classList.toggle("active", x.dataset.tab === name); });
-    ["demandes", "clients", "interventions", "grille", "materiel", "agenda"].forEach(function (n) {
+    TAB_NAMES.forEach(function (n) {
       document.getElementById("tab-" + n).hidden = n !== name;
     });
+    document.querySelectorAll("#bottom-nav [data-bn-tab]").forEach(function (b) {
+      b.classList.toggle("active", b.dataset.bnTab === name);
+    });
   }
+  function showTab(name) {
+    if (("#" + name) === window.location.hash) activateTab(name);
+    else window.location.hash = name;
+  }
+  tabs.forEach(function (t) {
+    if (!t.dataset.tab) return; // lien (messagerie dédiée)
+    t.addEventListener("click", function () { showTab(t.dataset.tab); });
+  });
+  window.addEventListener("hashchange", function () {
+    activateTab(window.location.hash.replace("#", ""));
+  });
+  if (window.location.hash) activateTab(window.location.hash.replace("#", ""));
+
+  // Menu bas façon application (téléphone) : une page par icône
+  (function buildBottomNav() {
+    var items = [
+      ["demandes", "📥", "Contacts"],
+      ["clients", "👥", "Clients"],
+      ["interventions", "🛠️", "Interv."],
+      ["grille", "💶", "Tarifs"],
+      ["materiel", "🧰", "Matériel"],
+      ["agenda", "📅", "Agenda"]
+    ];
+    var nav = document.getElementById("bottom-nav");
+    nav.innerHTML = items.map(function (it) {
+      return '<button type="button" class="bn-item' + (it[0] === "demandes" ? " active" : "") + '" data-bn-tab="' + it[0] + '"><span class="bn-ico">' + it[1] + "</span><span>" + it[2] + "</span></button>";
+    }).join("") +
+      '<a class="bn-item" href="messagerie.html" style="text-decoration:none;"><span class="bn-ico">💬</span><span>Messages</span></a>';
+    nav.querySelectorAll("[data-bn-tab]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        showTab(b.dataset.bnTab);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    });
+  })();
 
   /* ---------- Données ---------- */
   var clients = [], quotes = [], interventions = [], grid = [], tickets = [], blockedDates = [], equipment = [], endClients = [], iReqs = [], products = [], eqReqs = [], setupGuides = [];
@@ -390,8 +421,14 @@
   /* ---------- Programmé plus loin (au-delà de 7 jours) ---------- */
   function secteurOf(loc) {
     if (!loc) return "";
-    var parts = String(loc).split(",");
-    return parts[parts.length - 1].trim();
+    var seg = String(loc).split(",").pop().trim();
+    // Un code postal seul (ou CP + ville) : le département est ajouté derrière
+    var m = seg.match(/\b(\d{5})\b/);
+    if (m) {
+      var dept = (window.CTA_DEPTS || {})[m[1].slice(0, 2)];
+      if (dept && seg.toLowerCase().indexOf(dept.toLowerCase()) === -1) return seg + " · " + dept;
+    }
+    return seg;
   }
   function longDate(iso) {
     var t = new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
@@ -461,10 +498,10 @@
     monday.setDate(now.getDate() - ((now.getDay() + 6) % 7)); // lundi de la semaine en cours
     var weekStart = isoOf(monday);
     var monthPrefix = today.slice(0, 7);
-    var done = interventions.filter(function (r) { return r.status === "terminee" && r.amount_ht != null && r.date; });
+    var done = interventions.filter(function (r) { return r.status === "terminee" && (r.amount_ht != null || r.travel_ht != null) && r.date; });
     function sum(rows) {
       var t = 0;
-      rows.forEach(function (r) { t += Number(r.amount_ht) || 0; });
+      rows.forEach(function (r) { t += (Number(r.amount_ht) || 0) + (Number(r.travel_ht) || 0); });
       return t.toLocaleString("fr-FR", { minimumFractionDigits: t % 1 ? 2 : 0 }) + " €";
     }
     document.getElementById("ca-day").textContent = sum(done.filter(function (r) { return r.date === today; }));
@@ -497,7 +534,7 @@
       api("cta_end_clients?select=*&order=company_name.asc"),
       api("cta_intervention_requests?select=*,cta_end_clients(company_name,address,postal_code,city)&order=created_at.desc"),
       api("cta_products?select=*,cta_product_admin_costs(admin_price_ht)&order=sort.asc"),
-      api("cta_equipment_requests?select=*,cta_end_clients(company_name)&order=created_at.desc"),
+      api("cta_equipment_requests?select=*,cta_end_clients(company_name,contact_name,phone,address,postal_code,city)&order=created_at.desc"),
       api("cta_setup_guides?select=*&order=created_at.asc")
     ]).then(function (res) {
       clients = res[0]; quotes = res[1]; interventions = res[2];
@@ -877,7 +914,8 @@
         '<div style="flex:1;min-width:220px;">' +
         '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span style="font-weight:800;font-size:14.5px;">' + esc(r.type) + '</span>' + catChip(r.category) + ' <span style="font-weight:600;font-size:13.5px;color:#7fadff;">· ' + esc(clientName(r.partner_id)) + (endClient ? " → 🏁 " + esc(endClient) : "") + "</span></div>" +
         '<div style="margin-top:3px;font-size:13px;color:#93a0b5;">' + esc(r.equipment || "") + (r.location ? " · " + esc(r.location) : "") + (r.notes ? " · " + esc(r.notes) : "") + "</div></div>" +
-        '<input class="input iv-amount" type="number" step="0.01" min="0" value="' + (r.amount_ht == null ? "" : r.amount_ht) + '" placeholder="€ HT" title="Montant HT facturable" style="width:96px;padding:8px 10px;font-size:13px;text-align:right;">' +
+        '<input class="input iv-amount" type="number" step="0.01" min="0" value="' + (r.amount_ht == null ? "" : r.amount_ht) + '" placeholder="Presta €" title="Prix de la prestation HT" style="width:86px;padding:8px 10px;font-size:13px;text-align:right;">' +
+        '<input class="input iv-travel" type="number" step="0.01" min="0" value="' + (r.travel_ht == null ? "" : r.travel_ht) + '" placeholder="Km €" title="Indemnités kilométriques HT" style="width:76px;padding:8px 10px;font-size:13px;text-align:right;border-color:rgba(56,212,122,.3);">' +
         statusSelect(r.status, ["planifiee", "en_cours", "terminee", "annulee"], "iv-status") +
         (isDoneIvA(r) && !r.archived
           ? '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;color:#5f6d84;" title="Réalisée : archivée automatiquement">auto</span>'
@@ -908,6 +946,17 @@
             interventions.find(function (x) { return x.id === id; }).amount_ht = val;
             renderCA();
           }).catch(function () { showError("Montant non enregistré."); });
+      });
+    });
+    host.querySelectorAll(".iv-travel").forEach(function (inp) {
+      inp.addEventListener("change", function () {
+        var id = inp.closest("[data-iv-row]").dataset.ivRow;
+        var val = inp.value === "" ? null : Number(inp.value);
+        api("cta_interventions?id=eq." + id, { method: "PATCH", body: { travel_ht: val } })
+          .then(function () {
+            interventions.find(function (x) { return x.id === id; }).travel_ht = val;
+            renderCA();
+          }).catch(function () { showError("Indemnités non enregistrées."); });
       });
     });
     host.querySelectorAll(".iv-status").forEach(function (sel) {
@@ -1016,13 +1065,26 @@
     return prices.length ? Math.min.apply(null, prices) : null;
   }
   function applyPresetPrice() {
+    // Prestation seule : les indemnités kilométriques ont leur propre champ
     var amount = document.getElementById("iv-amount");
-    if (amount.value !== "" && amount.dataset.auto !== "1") return;
-    var base = basePresetPrice();
-    if (base == null) return;
-    var total = base + (lastTravel && lastTravel.fee > 0 ? lastTravel.fee : 0);
-    amount.value = Math.round(total * 100) / 100;
-    amount.dataset.auto = "1";
+    if (amount.value === "" || amount.dataset.auto === "1") {
+      var base = basePresetPrice();
+      if (base != null) {
+        amount.value = base;
+        amount.dataset.auto = "1";
+      }
+    }
+    applyKmPreset();
+  }
+  function applyKmPreset() {
+    var km = document.getElementById("iv-km");
+    if (km.value !== "" && km.dataset.auto !== "1") return;
+    if (lastTravel && lastTravel.fee > 0) {
+      km.value = lastTravel.fee;
+      km.dataset.auto = "1";
+    } else if (km.dataset.auto === "1") {
+      km.value = "";
+    }
   }
   var travelSeq = 0;
   function updateTravelHint() {
@@ -1043,9 +1105,9 @@
       } else {
         hint.textContent = "🚗 Déplacement : + " + t.fee.toLocaleString("fr-FR") + " € HT (" + t.km +
           " km A/R estimés · " + (billing.included_km || 70) + " km inclus puis " +
-          Number(billing.price_per_km || 0.12).toLocaleString("fr-FR") + " €/km), ajouté au montant automatique.";
+          Number(billing.price_per_km || 0.12).toLocaleString("fr-FR") + " €/km), reporté dans « Indemnités km ».";
       }
-      applyPresetPrice();
+      applyKmPreset();
     });
   }
   var ivLocTimer = null;
@@ -1054,6 +1116,7 @@
     ivLocTimer = setTimeout(updateTravelHint, 700);
   });
   document.getElementById("iv-amount").addEventListener("input", function () { this.dataset.auto = "0"; });
+  document.getElementById("iv-km").addEventListener("input", function () { this.dataset.auto = "0"; });
   // Type / matériel : « Autre… » fait apparaître un champ libre
   document.getElementById("iv-type").addEventListener("change", function () {
     document.getElementById("iv-type-autre").hidden = this.value !== "__autre";
@@ -1124,11 +1187,14 @@
       equipment: equipVal || null,
       location: document.getElementById("iv-loc").value.trim() || null,
       notes: document.getElementById("iv-notes").value.trim() || null,
-      amount_ht: document.getElementById("iv-amount").value === "" ? null : Number(document.getElementById("iv-amount").value)
+      amount_ht: document.getElementById("iv-amount").value === "" ? null : Number(document.getElementById("iv-amount").value),
+      travel_ht: document.getElementById("iv-km").value === "" ? null : Number(document.getElementById("iv-km").value)
     };
     if (!body.partner_id || !body.date || !body.type) return;
-    api("cta_interventions", { method: "POST", body: body })
-      .then(function () {
+    var createdId = null;
+    api("cta_interventions", { method: "POST", body: body, prefer: "return=representation" })
+      .then(function (rows) {
+        createdId = rows && rows[0] ? rows[0].id : null;
         ev.target.reset();
         return api("cta_interventions?select=*,cta_end_clients(company_name)&order=date.desc");
       })
@@ -1141,7 +1207,8 @@
         if (pendingRequestId) {
           var reqId = pendingRequestId;
           pendingRequestId = null;
-          api("cta_intervention_requests?id=eq." + reqId, { method: "PATCH", body: { status: "acceptee" } })
+          // La demande suit désormais l'intervention planifiée (statut synchronisé)
+          api("cta_intervention_requests?id=eq." + reqId, { method: "PATCH", body: { status: "acceptee", intervention_id: createdId } })
             .then(function () {
               var req = iReqs.find(function (x) { return x.id === reqId; });
               if (req) req.status = "acceptee";
@@ -1558,19 +1625,72 @@
     nouvelle: ["Nouvelle", "badge-blue"], acceptee: ["Acceptée", "badge-green"],
     refusee: ["Refusée", "badge-grey"], terminee: ["Terminée", "badge-grey"]
   };
+  var eqrTypeFilter = "";
+  var eqrOpenCats = {};
   function renderEqReqsAdmin() {
     var panel = document.getElementById("eqr-panel");
     if (!panel) return;
     // Visibles : demandes à traiter / en cours, plus les locations pas encore facturées
-    var visible = eqReqs.filter(function (r) {
+    var base = eqReqs.filter(function (r) {
       return r.status === "nouvelle" || r.status === "acceptee" ||
         (r.kind === "location" && r.price_ht != null && !r.invoiced && r.status !== "refusee");
     });
-    panel.hidden = !visible.length;
-    if (!visible.length) return;
-    document.getElementById("eqr-admin-list").innerHTML = visible.map(function (r) {
+    panel.hidden = !base.length;
+    if (!base.length) return;
+    // Filtre par type de demandeur (client direct / distributeur)
+    var countBy = function (t) { return base.filter(function (r) { return typeOfPartner(r.partner_id) === t; }).length; };
+    var chips = [["", "👥 Tous (" + base.length + ")"], ["direct", "🔧 Clients directs (" + countBy("direct") + ")"], ["distributeur", "📦 Distributeurs (" + countBy("distributeur") + ")"]];
+    document.getElementById("eqr-filter").innerHTML = chips.map(function (c) {
+      var active = eqrTypeFilter === c[0];
+      return '<button type="button" data-eqrf="' + c[0] + '" style="padding:6px 13px;border-radius:999px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;cursor:pointer;white-space:nowrap;' +
+        (active
+          ? "border:1px solid transparent;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;"
+          : "border:1px solid rgba(120,150,200,.28);background:transparent;color:#9fb6d8;") + '">' + esc(c[1]) + "</button>";
+    }).join("");
+    document.getElementById("eqr-filter").querySelectorAll("[data-eqrf]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        eqrTypeFilter = b.dataset.eqrf;
+        renderEqReqsAdmin();
+      });
+    });
+    var visible = base.filter(function (r) { return !eqrTypeFilter || typeOfPartner(r.partner_id) === eqrTypeFilter; });
+    // Regroupées par gamme d'appareil, chaque groupe se déroule / se replie
+    var byCat = {};
+    var order = [];
+    visible.forEach(function (r) {
+      var cat = gammeOf(r.product_name);
+      if (!byCat[cat]) { byCat[cat] = []; order.push(cat); }
+      byCat[cat].push(r);
+    });
+    if (!Object.keys(eqrOpenCats).length) order.forEach(function (c) { eqrOpenCats[c] = true; });
+    document.getElementById("eqr-admin-list").innerHTML = (!visible.length
+      ? '<p style="margin:0;padding:18px 24px;color:#5f6d84;font-size:13.5px;">Aucune demande avec ce filtre.</p>'
+      : order.map(function (cat) {
+          var open = eqrOpenCats[cat] !== false;
+          return '<button type="button" data-eqr-toggle="' + esc(cat) + '" style="display:flex;align-items:center;gap:10px;width:100%;padding:12px 24px;border:none;border-top:1px solid rgba(120,150,200,.08);background:transparent;cursor:pointer;font-family:\'IBM Plex Mono\',monospace;font-size:11.5px;letter-spacing:.14em;color:#ffbe50;text-transform:uppercase;text-align:left;">' +
+            "<span>" + (open ? "▾" : "▸") + "</span><span>" + esc(cat) + "</span>" +
+            '<span style="color:#5f6d84;text-transform:none;letter-spacing:0;">(' + byCat[cat].length + ")</span></button>" +
+            (open ? byCat[cat].map(eqrAdminRow).join("") : "");
+        }).join(""));
+    document.getElementById("eqr-admin-list").querySelectorAll("[data-eqr-toggle]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        eqrOpenCats[b.dataset.eqrToggle] = eqrOpenCats[b.dataset.eqrToggle] === false;
+        renderEqReqsAdmin();
+      });
+    });
+    bindEqrActions();
+  }
+  function eqrAdminRow(r) {
       var st = EQR_STATUS[r.status] || [r.status, "badge-grey"];
       var endClient = r.cta_end_clients && r.cta_end_clients.company_name;
+      // Où se trouve le matériel + contact sur place (fiche du client final,
+      // sinon coordonnées du compte demandeur)
+      var whereSrc = r.cta_end_clients || clients.find(function (c) { return c.id === r.partner_id; }) || {};
+      var whereAddr = [whereSrc.address, [whereSrc.postal_code, whereSrc.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+      var whereParts = [whereAddr ? "📍 " + whereAddr : "", whereSrc.contact_name ? "👤 " + whereSrc.contact_name : "", whereSrc.phone ? "📞 " + whereSrc.phone : ""].filter(Boolean);
+      var whereLine = whereParts.length
+        ? '<div style="margin-top:3px;font-size:12.5px;color:#93a0b5;">' + whereParts.map(esc).join(" · ") + "</div>"
+        : "";
       var billing = "";
       if (r.kind === "location" && r.price_ht != null) {
         billing = '<div style="margin-top:4px;font-size:12.5px;">💶 <strong style="color:#dfe6f2;">' +
@@ -1584,6 +1704,7 @@
         '<div style="flex:1;min-width:220px;">' +
         '<div style="font-weight:800;font-size:14px;">' + esc(r.product_name) + ' <span style="font-weight:600;color:#7fadff;">· ' + esc(clientName(r.partner_id)) +
         (endClient ? " → 🏁 " + esc(endClient) : "") + "</span></div>" +
+        whereLine +
         '<div style="margin-top:3px;font-size:12.5px;color:#93a0b5;">' +
         [r.duration ? "⏱️ " + r.duration : "", r.start_date ? "📅 à partir du " + fmtDate(r.start_date) : ""].filter(Boolean).map(esc).join(" · ") + "</div>" +
         billing +
@@ -1599,7 +1720,8 @@
           ? '<button ' + GHOST_BTN + ' data-eqr-bill="' + r.id + '">' + (r.invoiced ? "↺ Repasser en attente" : "💶 Marquer facturée") + "</button>"
           : "") +
         "</div></div>";
-    }).join("");
+  }
+  function bindEqrActions() {
     function setEqrStatus(id, status, extra) {
       api("cta_equipment_requests?id=eq." + id, { method: "PATCH", body: { status: status } })
         .then(function () {

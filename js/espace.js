@@ -138,34 +138,62 @@
     el.textContent = msg;
   }
 
-  /* ---------- Onglets ---------- */
+  /* ---------- Navigation : onglets (ordinateur) + menu bas (téléphone) ----------
+     Chaque rubrique a sa propre « page » via le hash de l'URL : le bouton
+     retour du téléphone fonctionne comme dans une application. */
+  var TAB_NAMES = ["interventions", "documents", "grille", "clients", "materiel", "mes", "messagerie"];
   var tabs = document.querySelectorAll(".tab");
-  tabs.forEach(function (t) {
-    t.addEventListener("click", function () {
-      tabs.forEach(function (x) { x.classList.toggle("active", x === t); });
-      ["interventions", "documents", "grille", "clients", "materiel", "mes", "messagerie"].forEach(function (name) {
-        document.getElementById("tab-" + name).hidden = name !== t.dataset.tab;
-      });
-      syncBottomNav(t.dataset.tab);
+  function activateTab(name) {
+    if (TAB_NAMES.indexOf(name) === -1) name = "interventions";
+    tabs.forEach(function (x) { x.classList.toggle("active", x.dataset.tab === name); });
+    TAB_NAMES.forEach(function (n) {
+      document.getElementById("tab-" + n).hidden = n !== name;
     });
+    syncBottomNav(name);
+  }
+  function goTab(name) {
+    if (("#" + name) === window.location.hash) activateTab(name);
+    else window.location.hash = name;
+  }
+  tabs.forEach(function (t) {
+    t.addEventListener("click", function () { goTab(t.dataset.tab); });
   });
+  window.addEventListener("hashchange", function () {
+    activateTab(window.location.hash.replace("#", ""));
+  });
+  if (window.location.hash) activateTab(window.location.hash.replace("#", ""));
 
-  /* ---------- Menu bas façon application (téléphone) ---------- */
   function syncBottomNav(name) {
     document.querySelectorAll("#bottom-nav [data-bn-tab]").forEach(function (b) {
       b.classList.toggle("active", b.dataset.bnTab === name);
     });
   }
-  document.querySelectorAll("#bottom-nav [data-bn-tab]").forEach(function (b) {
-    b.addEventListener("click", function () {
-      var tab = document.querySelector('.tab[data-tab="' + b.dataset.bnTab + '"]');
-      if (tab) tab.click();
-      window.scrollTo({ top: 0, behavior: "smooth" });
+  // Construit le menu bas selon le profil (chaque icône ouvre sa page)
+  function buildBottomNav() {
+    var items = [["interventions", "🛠️", "Interv."]];
+    if (clientType !== "distributeur") items.push(["documents", "📄", "Devis"]);
+    items.push(["grille", "💶", "Tarifs"]);
+    if (clientType === "distributeur") items.push(["clients", "🏁", "Clients"]);
+    items.push(["materiel", "🧰", "Matériel"]);
+    if (me && me.remote_setup_enabled) items.push(["mes", "🛰️", "Mise en serv."]);
+    items.push(["messagerie", "💬", "Messages"]);
+    var nav = document.getElementById("bottom-nav");
+    nav.innerHTML = items.map(function (it) {
+      return '<button type="button" class="bn-item" data-bn-tab="' + it[0] + '"><span class="bn-ico">' + it[1] + "</span><span>" + it[2] + "</span></button>";
+    }).join("") +
+      '<button type="button" class="bn-item" id="bn-profile"><span class="bn-ico">⚙️</span><span>Profil</span></button>';
+    nav.querySelectorAll("[data-bn-tab]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        goTab(b.dataset.bnTab);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
     });
-  });
-  document.getElementById("bn-profile").addEventListener("click", function () {
-    document.getElementById("profile-btn").click();
-  });
+    document.getElementById("bn-profile").addEventListener("click", function () {
+      document.getElementById("profile-btn").click();
+    });
+    syncBottomNav(window.location.hash.replace("#", "") || "interventions");
+  }
+  buildBottomNav();
 
   function fn(name, body, retried) {
     return fetch(API + "/functions/v1/" + name, {
@@ -215,6 +243,7 @@
     loadMyRequests();
     // Mise en service à distance : onglet activé par le gérant, fiche par fiche
     if (p.remote_setup_enabled) document.getElementById("tab-btn-mes").hidden = false;
+    buildBottomNav();
     if (clientType === "distributeur") {
       document.getElementById("tab-btn-clients").hidden = false;
       // Distributeur : pas de devis / factures ici (gérés par la banque de CTA)
@@ -346,8 +375,14 @@
   }
   function secteurOf(loc) {
     if (!loc) return "";
-    var parts = String(loc).split(",");
-    return parts[parts.length - 1].trim();
+    var seg = String(loc).split(",").pop().trim();
+    // Un code postal seul (ou CP + ville) : le département est ajouté derrière
+    var m = seg.match(/\b(\d{5})\b/);
+    if (m) {
+      var dept = (window.CTA_DEPTS || {})[m[1].slice(0, 2)];
+      if (dept && seg.toLowerCase().indexOf(dept.toLowerCase()) === -1) return seg + " · " + dept;
+    }
+    return seg;
   }
   function longDate(iso) {
     var t = new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
@@ -701,28 +736,39 @@
       fillEqrEndclient();
     }).catch(function () { showError("Impossible de charger vos fiches clients."); });
   }
+  function ecField(label, inner) {
+    return '<div style="display:flex;flex-direction:column;gap:4px;min-width:0;">' +
+      '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;letter-spacing:.12em;color:#5f6d84;text-transform:uppercase;">' + label + "</span>" + inner + "</div>";
+  }
   function renderFiches() {
     var host = document.getElementById("ec-list");
     if (!host) return;
     if (!fiches.length) {
+      host.style.cssText = "";
       host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Aucune fiche client : créez la première ci-dessus.</p>';
       return;
     }
+    host.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;padding:18px;align-items:stretch;";
     host.innerHTML = fiches.map(function (f) {
       var nb = myInterventions.filter(function (i) { return i.end_client_id === f.id; }).length;
-      return '<div class="list-row" data-ec-row="' + f.id + '" style="align-items:center;">' +
-        '<div style="min-width:170px;">' +
-        '<div style="font-weight:800;font-size:14.5px;">' + esc(f.company_name) + "</div>" +
-        '<div style="margin-top:3px;font-size:12px;color:#5f6d84;">' + nb + " intervention" + (nb > 1 ? "s" : "") + " CTA</div></div>" +
-        '<input class="input" data-f="contact_name" value="' + esc(f.contact_name || "") + '" placeholder="Contact" style="width:120px;padding:9px 12px;font-size:13px;">' +
-        '<input class="input" data-f="phone" value="' + esc(f.phone || "") + '" placeholder="Téléphone" style="width:125px;padding:9px 12px;font-size:13px;">' +
-        '<input class="input" data-f="email" value="' + esc(f.email || "") + '" placeholder="E-mail" style="flex:1;min-width:140px;padding:9px 12px;font-size:13px;">' +
-        '<input class="input" data-f="address" value="' + esc(f.address || "") + '" placeholder="Adresse (n° et rue)" style="flex:1 1 100%;min-width:200px;padding:9px 12px;font-size:13px;">' +
-        '<input class="input" data-f="postal_code" value="' + esc(f.postal_code || "") + '" placeholder="Code postal" style="width:110px;padding:9px 12px;font-size:13px;">' +
-        '<input class="input" data-f="city" value="' + esc(f.city || "") + '" placeholder="Ville" style="flex:1;min-width:120px;padding:9px 12px;font-size:13px;">' +
-        '<div style="display:flex;gap:8px;">' +
-        '<button style="padding:7px 14px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:12px;cursor:pointer;font-family:\'Archivo\',sans-serif;" data-ec-save="' + f.id + '">Enregistrer</button>' +
-        '<button style="padding:7px 14px;border-radius:999px;border:1px solid rgba(255,110,110,.35);background:transparent;color:#ff8c8c;font-weight:700;font-size:12px;cursor:pointer;font-family:\'Archivo\',sans-serif;" data-ec-del="' + f.id + '">✕</button>' +
+      var inp = 'class="input" style="width:100%;min-width:0;box-sizing:border-box;padding:9px 12px;font-size:13px;"';
+      return '<div data-ec-row="' + f.id + '" style="border-radius:16px;background:rgba(13,17,25,.75);border:1px solid rgba(120,150,200,.18);padding:20px;display:flex;flex-direction:column;gap:12px;min-width:0;">' +
+        '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;">' +
+        '<span style="font-weight:900;font-size:15.5px;">🏁 ' + esc(f.company_name) + "</span>" +
+        '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#5f6d84;">' + nb + " intervention" + (nb > 1 ? "s" : "") + " CTA</span></div>" +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+        ecField("Contact", '<input ' + inp + ' data-f="contact_name" value="' + esc(f.contact_name || "") + '">') +
+        ecField("Téléphone", '<input ' + inp + ' data-f="phone" value="' + esc(f.phone || "") + '">') +
+        "</div>" +
+        ecField("E-mail", '<input ' + inp + ' data-f="email" value="' + esc(f.email || "") + '">') +
+        ecField("Adresse (n° et rue)", '<input ' + inp + ' data-f="address" value="' + esc(f.address || "") + '">') +
+        '<div style="display:grid;grid-template-columns:1fr 2fr;gap:10px;">' +
+        ecField("Code postal", '<input ' + inp + ' data-f="postal_code" value="' + esc(f.postal_code || "") + '">') +
+        ecField("Ville", '<input ' + inp + ' data-f="city" value="' + esc(f.city || "") + '">') +
+        "</div>" +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;">' +
+        '<button class="btn-primary" data-ec-save="' + f.id + '" style="padding:9px 18px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:12.5px;cursor:pointer;">Enregistrer</button>' +
+        '<button style="padding:8px 14px;border-radius:999px;border:1px solid rgba(255,110,110,.35);background:transparent;color:#ff8c8c;font-weight:700;font-size:12px;cursor:pointer;font-family:\'Archivo\',sans-serif;" data-ec-del="' + f.id + '">Supprimer</button>' +
         "</div></div>";
     }).join("");
     host.querySelectorAll("[data-ec-save]").forEach(function (b) {
@@ -804,25 +850,63 @@
 
   /* ---------- Demandes d'intervention (distributeurs) ---------- */
   var myRequests = [];
-  var REQ_STATUS = { nouvelle: ["Envoyée", "badge-blue"], acceptee: ["Planifiée ✓", "badge-green"], refusee: ["Refusée", "badge-grey"] };
+  // Statut d'une intervention avec progression automatique selon la date et
+  // l'heure : planifiée -> en cours (heure atteinte) -> terminée (jour passé).
+  function autoIvStatus(iv) {
+    if (!iv) return null;
+    var s = iv.status;
+    if (s === "annulee") return s;
+    if (iv.date) {
+      var today = isoOfDay(new Date());
+      if (iv.date < today) {
+        s = "terminee";
+      } else if (iv.date === today) {
+        var nowHM = new Date().toTimeString().slice(0, 5);
+        if (s === "planifiee" && (!iv.time_slot || iv.time_slot.slice(0, 5) <= nowHM)) s = "en_cours";
+      }
+    }
+    return s;
+  }
+  var REQ_IV_STATUS = {
+    planifiee: ["Planifiée ✓", "badge-blue"], en_cours: ["En cours 🔧", "badge-amber"],
+    terminee: ["Terminée ✓", "badge-green"], annulee: ["Annulée", "badge-grey"]
+  };
   function loadMyRequests() {
-    return api("cta_intervention_requests?select=*,cta_end_clients(company_name)&order=created_at.desc").then(function (rows) {
+    return api("cta_intervention_requests?select=*,cta_end_clients(company_name),cta_interventions(status,date,time_slot)&order=created_at.desc").then(function (rows) {
       myRequests = rows;
       var wrap = document.getElementById("myreq-wrap");
       wrap.hidden = !rows.length;
       if (!rows.length) return;
-      document.getElementById("myreq-list").innerHTML = rows.map(function (r) {
-        var st = REQ_STATUS[r.status] || [r.status, "badge-grey"];
+      var host = document.getElementById("myreq-list");
+      host.innerHTML = rows.map(function (r) {
+        // Le statut suit l'intervention planifiée par le gérant quand elle existe
+        var st;
+        if (r.status === "refusee") st = ["Refusée", "badge-grey"];
+        else if (r.cta_interventions) st = REQ_IV_STATUS[autoIvStatus(r.cta_interventions)] || ["Planifiée ✓", "badge-blue"];
+        else if (r.status === "acceptee") st = ["Planifiée ✓", "badge-blue"];
+        else st = ["Envoyée", "badge-blue"];
         return '<div class="list-row">' +
           catChip(r.category) +
           '<div style="flex:1;min-width:200px;">' +
           '<div style="font-size:13.5px;font-weight:700;">' +
           (r.cta_end_clients ? "Chez " + esc(r.cta_end_clients.company_name) : "Pour votre société") +
-          (r.desired_date ? " · souhaité le " + esc(fmtDate(r.desired_date)) + (r.desired_slot ? " à " + esc(r.desired_slot) : "") : "") + "</div>" +
+          (r.cta_interventions && r.cta_interventions.date
+            ? " · le " + esc(fmtDate(r.cta_interventions.date)) + (r.cta_interventions.time_slot ? " à " + esc(r.cta_interventions.time_slot) : "")
+            : (r.desired_date ? " · souhaité le " + esc(fmtDate(r.desired_date)) + (r.desired_slot ? " à " + esc(r.desired_slot) : "") : "")) + "</div>" +
           (r.message ? '<div style="margin-top:3px;font-size:12.5px;color:#8b98ae;">' + esc(r.message) + "</div>" : "") +
           '<div style="margin-top:3px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#5f6d84;">Envoyée le ' + esc(fmtDateTime(r.created_at)) + "</div></div>" +
-          '<span class="badge ' + st[1] + '">' + st[0] + "</span></div>";
+          '<span class="badge ' + st[1] + '">' + st[0] + "</span>" +
+          '<button type="button" data-req-del="' + r.id + '" title="Supprimer la demande" style="padding:7px 12px;border-radius:999px;border:1px solid rgba(255,110,110,.35);background:transparent;color:#ff8c8c;font-weight:700;font-size:12px;cursor:pointer;font-family:\'Archivo\',sans-serif;">✕</button>' +
+          "</div>";
       }).join("");
+      host.querySelectorAll("[data-req-del]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          if (!window.confirm("Supprimer cette demande d'intervention ?")) return;
+          api("cta_intervention_requests?id=eq." + b.dataset.reqDel, { method: "DELETE" })
+            .then(function () { return loadMyRequests(); })
+            .catch(function () { showError("Suppression impossible."); });
+        });
+      });
     }).catch(function () { /* non bloquant */ });
   }
   var ireqBtn = document.getElementById("ireq-btn");
@@ -1058,6 +1142,14 @@
     host.innerHTML = eqReqs.map(function (r) {
       var st = EQR_STATUS[r.status] || [r.status, "badge-grey"];
       var endClient = r.cta_end_clients && r.cta_end_clients.company_name;
+      // Où se trouve le matériel + qui contacter sur place
+      var whereLine = "";
+      if (r.cta_end_clients) {
+        var ecf = r.cta_end_clients;
+        var addr = [ecf.address, [ecf.postal_code, ecf.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+        var parts = [addr ? "📍 " + addr : "", ecf.contact_name ? "👤 " + ecf.contact_name : "", ecf.phone ? "📞 " + ecf.phone : ""].filter(Boolean);
+        if (parts.length) whereLine = '<div style="margin-top:3px;font-size:12.5px;color:#93a0b5;">' + parts.map(esc).join(" · ") + "</div>";
+      }
       var billing = "";
       if (r.kind === "location" && r.price_ht != null) {
         billing = '<div style="margin-top:4px;font-size:12.5px;">💶 <strong style="color:#dfe6f2;">' +
@@ -1071,6 +1163,7 @@
         '<div style="flex:1;min-width:200px;">' +
         '<div style="font-weight:800;font-size:14.5px;">' + esc(r.product_name) +
         (endClient ? ' <span style="font-weight:600;font-size:13px;color:#7fadff;">· 🏁 chez ' + esc(endClient) + "</span>" : "") + "</div>" +
+        whereLine +
         '<div style="margin-top:3px;font-size:12.5px;color:#93a0b5;">' +
         [r.duration ? "⏱️ " + r.duration : "", r.start_date ? "📅 à partir du " + fmtDate(r.start_date) : ""].filter(Boolean).map(esc).join(" · ") + "</div>" +
         billing +
@@ -1080,7 +1173,7 @@
     }).join("");
   }
   function loadEqReqs() {
-    return api("cta_equipment_requests?select=*,cta_end_clients(company_name)&order=created_at.desc").then(function (rows) {
+    return api("cta_equipment_requests?select=*,cta_end_clients(company_name,contact_name,phone,address,postal_code,city)&order=created_at.desc").then(function (rows) {
       eqReqs = rows;
       renderEqReqs();
     }).catch(function () { /* non bloquant */ });
@@ -1304,14 +1397,21 @@
   var ticketForm = document.getElementById("ticket-form");
   document.getElementById("new-ticket-btn").addEventListener("click", function () {
     ticketForm.hidden = !ticketForm.hidden;
-    if (!ticketForm.hidden) document.getElementById("t-subject").focus();
+    if (!ticketForm.hidden) document.getElementById("t-subject-sel").focus();
+  });
+  // Sujet : liste de cas fréquents, ou saisie libre via « Autre sujet »
+  document.getElementById("t-subject-sel").addEventListener("change", function () {
+    var free = this.value === "__autre";
+    document.getElementById("t-subject").hidden = !free;
+    if (free) document.getElementById("t-subject").focus();
   });
   document.getElementById("ticket-cancel").addEventListener("click", function () {
     ticketForm.hidden = true;
   });
   ticketForm.addEventListener("submit", function (ev) {
     ev.preventDefault();
-    var subject = document.getElementById("t-subject").value.trim();
+    var sel = document.getElementById("t-subject-sel").value;
+    var subject = sel === "__autre" ? document.getElementById("t-subject").value.trim() : sel;
     var body = document.getElementById("t-body").value.trim();
     if (!subject || !body) return;
     api("cta_tickets", { method: "POST", body: { partner_id: uid, subject: subject }, prefer: "return=representation" })
@@ -1328,6 +1428,7 @@
       })
       .then(function (id) {
         ticketForm.reset();
+        document.getElementById("t-subject").hidden = true;
         ticketForm.hidden = true;
         currentTicket = id;
         return loadTickets(true);
