@@ -795,6 +795,14 @@
       fillEqrEndclient();
     }).catch(function () { showError("Impossible de charger vos fiches clients."); });
   }
+  // Adresse complétée par sa région (le département déduit du code postal)
+  function addrWithDept(addr) {
+    if (!addr) return "";
+    var m = String(addr).match(/\b(\d{5})\b/);
+    var dept = m && (window.CTA_DEPTS || {})[m[1].slice(0, 2)];
+    return addr + (dept && String(addr).toLowerCase().indexOf(dept.toLowerCase()) === -1 ? " · " + dept : "");
+  }
+  var ecOpen = {};
   function ecField(label, inner) {
     return '<div style="display:flex;flex-direction:column;gap:4px;min-width:0;">' +
       '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;letter-spacing:.12em;color:#5f6d84;text-transform:uppercase;">' + label + "</span>" + inner + "</div>";
@@ -807,14 +815,23 @@
       host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Aucune fiche client : créez la première ci-dessus.</p>';
       return;
     }
-    host.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;padding:18px;align-items:stretch;";
+    host.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;padding:18px;align-items:start;";
     host.innerHTML = fiches.map(function (f) {
       var nb = myInterventions.filter(function (i) { return i.end_client_id === f.id; }).length;
       var inp = 'class="input" style="width:100%;min-width:0;box-sizing:border-box;padding:9px 12px;font-size:13px;"';
-      return '<div data-ec-row="' + f.id + '" style="border-radius:16px;background:rgba(13,17,25,.75);border:1px solid rgba(120,150,200,.18);padding:20px;display:flex;flex-direction:column;gap:12px;min-width:0;">' +
+      var open = !!ecOpen[f.id];
+      var addr = [f.address, [f.postal_code, f.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+      // Fiche repliée : résumé (garage, contact, adresse + région), un clic déplie
+      var summary = '<div data-ec-toggle="' + f.id + '" style="display:flex;flex-direction:column;gap:6px;cursor:pointer;-webkit-tap-highlight-color:transparent;">' +
         '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;">' +
-        '<span style="font-weight:900;font-size:15.5px;">🚗 ' + esc(f.company_name) + "</span>" +
+        '<span style="font-weight:900;font-size:15.5px;">' + (open ? "▾ " : "▸ ") + "🚗 " + esc(f.company_name) + "</span>" +
         '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#5f6d84;">' + nb + " intervention" + (nb > 1 ? "s" : "") + " CTA</span></div>" +
+        (f.contact_name ? '<div style="font-size:13px;color:#c3cddd;">👤 ' + esc(f.contact_name) + (f.phone ? ' · 📞 ' + esc(f.phone) : "") + "</div>" : "") +
+        (addr ? '<div style="font-size:13px;color:#93a0b5;">📍 ' + esc(addrWithDept(addr)) + "</div>" : "") +
+        "</div>";
+      if (!open) return '<div data-ec-row="' + f.id + '" style="border-radius:16px;background:rgba(13,17,25,.75);border:1px solid rgba(120,150,200,.18);padding:16px 20px;min-width:0;">' + summary + "</div>";
+      return '<div data-ec-row="' + f.id + '" style="border-radius:16px;background:rgba(13,17,25,.75);border:1px solid rgba(77,141,255,.3);padding:20px;display:flex;flex-direction:column;gap:12px;min-width:0;">' +
+        summary +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
         ecField("Contact", '<input ' + inp + ' data-f="contact_name" value="' + esc(f.contact_name || "") + '">') +
         ecField("Téléphone", '<input ' + inp + ' data-f="phone" value="' + esc(f.phone || "") + '">') +
@@ -830,6 +847,12 @@
         '<button style="padding:8px 14px;border-radius:999px;border:1px solid rgba(255,110,110,.35);background:transparent;color:#ff8c8c;font-weight:700;font-size:12px;cursor:pointer;font-family:\'Archivo\',sans-serif;" data-ec-del="' + f.id + '">Supprimer</button>' +
         "</div></div>";
     }).join("");
+    host.querySelectorAll("[data-ec-toggle]").forEach(function (t) {
+      t.addEventListener("click", function () {
+        ecOpen[t.dataset.ecToggle] = !ecOpen[t.dataset.ecToggle];
+        renderFiches();
+      });
+    });
     host.querySelectorAll("[data-ec-save]").forEach(function (b) {
       b.addEventListener("click", function () {
         var row = host.querySelector('[data-ec-row="' + b.dataset.ecSave + '"]');

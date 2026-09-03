@@ -833,6 +833,14 @@
     return '<div style="display:flex;flex-direction:column;gap:4px;">' +
       '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;letter-spacing:.12em;color:#5f6d84;text-transform:uppercase;">' + label + "</span>" + inner + "</div>";
   }
+  // Adresse complétée par sa région (le département déduit du code postal)
+  function addrWithDept(addr) {
+    if (!addr) return "";
+    var m = String(addr).match(/\b(\d{5})\b/);
+    var dept = m && (window.CTA_DEPTS || {})[m[1].slice(0, 2)];
+    return addr + (dept && String(addr).toLowerCase().indexOf(dept.toLowerCase()) === -1 ? " · " + dept : "");
+  }
+  var clientOpen = {};
   function renderClients() {
     var host = document.getElementById("clients-list");
     if (!clients.length) {
@@ -840,16 +848,24 @@
       host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Aucun client.</p>';
       return;
     }
-    host.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;padding:18px;align-items:stretch;";
+    host.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;padding:18px;align-items:start;";
     host.innerHTML = clients.map(function (c) {
       var isAdmin = c.role === "admin";
       var nb = interventions.filter(function (i) { return i.partner_id === c.id; }).length;
-      return '<div data-client-row="' + c.id + '" style="border-radius:16px;background:rgba(13,17,25,.75);border:1px solid rgba(120,150,200,.18);padding:20px;display:flex;flex-direction:column;gap:12px;">' +
+      var open = !!clientOpen[c.id];
+      // Fiche repliée : résumé (garage, contact, adresse + région), un clic déplie
+      var summary = '<div data-client-toggle="' + c.id + '" style="display:flex;flex-direction:column;gap:6px;cursor:pointer;-webkit-tap-highlight-color:transparent;">' +
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">' +
-        '<div><div style="font-weight:900;font-size:16px;">' + esc(c.company_name || c.email || "?") + "</div>" +
-        '<a href="mailto:' + esc(c.email || "") + '" style="font-size:12.5px;color:#7fadff;">' + esc(c.email || "") + "</a></div>" +
+        '<div style="font-weight:900;font-size:16px;">' + (open ? "▾ " : "▸ ") + esc(c.company_name || c.email || "?") + "</div>" +
         '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">' + typeBadge(c.client_type) +
         (isAdmin ? ' <span class="badge badge-amber">Admin</span>' : "") + "</div></div>" +
+        (c.contact_name ? '<div style="font-size:13px;color:#c3cddd;">👤 ' + esc(c.contact_name) + (c.phone ? ' · 📞 ' + esc(c.phone) : "") + "</div>" : "") +
+        (c.address ? '<div style="font-size:13px;color:#93a0b5;">📍 ' + esc(addrWithDept(c.address)) + "</div>" : "") +
+        "</div>";
+      if (!open) return '<div data-client-row="' + c.id + '" style="border-radius:16px;background:rgba(13,17,25,.75);border:1px solid rgba(120,150,200,.18);padding:16px 20px;">' + summary + "</div>";
+      return '<div data-client-row="' + c.id + '" style="border-radius:16px;background:rgba(13,17,25,.75);border:1px solid rgba(77,141,255,.3);padding:20px;display:flex;flex-direction:column;gap:12px;">' +
+        summary +
+        '<a href="mailto:' + esc(c.email || "") + '" style="font-size:12.5px;color:#7fadff;">' + esc(c.email || "") + "</a>" +
         '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#5f6d84;">' + nb + " intervention" + (nb > 1 ? "s" : "") +
         (c.address ? ' · <a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(c.address) + '" target="_blank" rel="noopener" style="font-size:12px;">🗺️ Itinéraire</a>' : "") + "</div>" +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
@@ -870,6 +886,12 @@
         (isAdmin ? "" : '<button ' + DANGER_BTN + ' data-client-del="' + c.id + '">Supprimer</button>') +
         "</div></div>";
     }).join("");
+    host.querySelectorAll("[data-client-toggle]").forEach(function (t) {
+      t.addEventListener("click", function () {
+        clientOpen[t.dataset.clientToggle] = !clientOpen[t.dataset.clientToggle];
+        renderClients();
+      });
+    });
     host.querySelectorAll("[data-client-save]").forEach(function (b) {
       b.addEventListener("click", function () {
         var row = host.querySelector('[data-client-row="' + b.dataset.clientSave + '"]');
@@ -1515,7 +1537,7 @@
         "</div>" +
         '<div style="font-size:12.5px;color:#93a0b5;">' +
         [e.contact_name ? "👤 " + e.contact_name : "", e.phone ? "📞 " + e.phone : "", e.email ? "✉️ " + e.email : "",
-         [e.address, [e.postal_code, e.city].filter(Boolean).join(" ")].filter(Boolean).length ? "📍 " + [e.address, [e.postal_code, e.city].filter(Boolean).join(" ")].filter(Boolean).join(", ") : ""].filter(Boolean).map(esc).join(" · ") +
+         [e.address, [e.postal_code, e.city].filter(Boolean).join(" ")].filter(Boolean).length ? "📍 " + addrWithDept([e.address, [e.postal_code, e.city].filter(Boolean).join(" ")].filter(Boolean).join(", ")) : ""].filter(Boolean).map(esc).join(" · ") +
         (e.notes ? ' · 📝 ' + esc(e.notes) : "") + "</div>" +
         (isOpen
           ? '<div style="width:100%;padding:10px 14px;border-radius:12px;background:rgba(10,13,19,.6);border:1px solid rgba(120,150,200,.15);">' +

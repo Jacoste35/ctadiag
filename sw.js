@@ -3,8 +3,8 @@
    arrivent immédiatement quand on est en ligne, le cache sert de secours hors
    ligne) ; cache d'abord pour les images. Les appels au backend (autre origine)
    ne sont jamais interceptés. */
-var CACHE = "cta-app-v10";
-var ASSET_V = "20260909"; // doit suivre le ?v= des pages HTML
+var CACHE = "cta-app-v11";
+var ASSET_V = "20260910"; // doit suivre le ?v= des pages HTML
 var PRECACHE = [
   "./",
   "./index.html",
