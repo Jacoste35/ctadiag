@@ -104,6 +104,23 @@
     return '<span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;border:1px solid rgba(120,150,200,.28);font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#9fb6d8;white-space:nowrap;">' +
       esc(CATS[c] || CATS.autre) + "</span>";
   }
+  function mondayIso(dateIso) {
+    var pa = dateIso.split("-").map(Number);
+    var d = new Date(pa[0], pa[1] - 1, pa[2]);
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function frMonth(ym) {
+    var t = new Date(ym + "-01T12:00:00").toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  }
+  function weekLabel(mIso) {
+    var pa = mIso.split("-").map(Number);
+    var a = new Date(pa[0], pa[1] - 1, pa[2]);
+    var b = new Date(a); b.setDate(a.getDate() + 6);
+    var f = function (d) { return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }); };
+    return "Semaine du " + f(a) + " au " + f(b);
+  }
   var STATUS = {
     planifiee: ["Planifiée", "badge-blue"], en_cours: ["En cours", "badge-amber"],
     terminee: ["Terminée", "badge-green"], annulee: ["Annulée", "badge-grey"],
@@ -221,27 +238,77 @@
     });
   }
 
-  /* ---------- Interventions ---------- */
+  /* ---------- Interventions (groupées par mois et semaine, archivables) ---------- */
   var myInterventions = [];
-  api("cta_interventions?select=*,cta_end_clients(company_name)&order=date.asc").then(function (rows) {
-    myInterventions = rows;
+  var showArchivedIv = false;
+  function renderMyInterventions() {
     var host = document.getElementById("interv-list");
     document.getElementById("stat-interv").textContent =
-      rows.filter(function (r) { return r.status === "planifiee" || r.status === "en_cours"; }).length;
+      myInterventions.filter(function (r) { return r.status === "planifiee" || r.status === "en_cours"; }).length;
+    var rows = myInterventions
+      .filter(function (r) { return showArchivedIv ? r.client_archived : !r.client_archived; })
+      .slice()
+      .sort(function (a, b) { return ((b.date || "") + (b.time_slot || "")) < ((a.date || "") + (a.time_slot || "")) ? -1 : 1; });
+    var archivedCount = myInterventions.filter(function (r) { return r.client_archived; }).length;
+    var toggle = archivedCount
+      ? '<div style="padding:12px 24px;"><button type="button" id="iv-toggle-archived" style="padding:9px 14px;border-radius:999px;border:1px dashed rgba(120,150,200,.3);background:transparent;color:#8b98ae;font-weight:700;font-size:12.5px;cursor:pointer;font-family:\'Archivo\',sans-serif;">' +
+        (showArchivedIv ? "← Retour aux interventions" : "🗄️ Voir les archives (" + archivedCount + ")") + "</button></div>"
+      : "";
     if (!rows.length) {
-      host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Aucune intervention pour le moment.</p>';
+      host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">' +
+        (showArchivedIv ? "Aucune intervention archivée." : "Aucune intervention pour le moment.") + "</p>" + toggle;
+      bindIvControls(host);
       return;
     }
-    host.innerHTML = rows.map(function (r) {
+    var html = "";
+    var lastMonth = "", lastWeek = "";
+    rows.forEach(function (r) {
+      var ym = (r.date || "").slice(0, 7);
+      if (ym && ym !== lastMonth) {
+        html += '<div style="padding:16px 24px 4px;font-family:\'IBM Plex Mono\',monospace;font-size:12.5px;letter-spacing:.14em;color:#7fadff;text-transform:uppercase;border-top:1px solid rgba(120,150,200,.08);">' + esc(frMonth(ym)) + "</div>";
+        lastMonth = ym; lastWeek = "";
+      }
+      var wk = r.date ? mondayIso(r.date) : "";
+      if (wk && wk !== lastWeek) {
+        html += '<div style="padding:6px 24px 0;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#5f6d84;">· ' + esc(weekLabel(wk)) + "</div>";
+        lastWeek = wk;
+      }
       var endClient = r.cta_end_clients && r.cta_end_clients.company_name;
-      return '<div class="list-row">' +
+      html += '<div class="list-row" style="border-top:none;">' +
         '<div style="min-width:120px;font-family:\'IBM Plex Mono\',monospace;font-size:13px;color:#c9d4e6;">' + esc(fmtDate(r.date)) + (r.time_slot ? " · " + esc(r.time_slot) : "") + "</div>" +
         '<div style="flex:1;min-width:220px;"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span style="font-weight:800;font-size:15px;">' + esc(r.type) + "</span>" + catChip(r.category) + "</div>" +
         (endClient ? '<div style="margin-top:3px;font-size:13px;color:#7fadff;">🏁 Chez ' + esc(endClient) + "</div>" : "") +
         '<div style="margin-top:3px;font-size:13px;color:#93a0b5;">' + esc(r.equipment || "") + (r.location ? " · " + esc(r.location) : "") + "</div>" +
         (r.notes ? '<div style="margin-top:4px;font-size:12.5px;color:#5f6d84;">' + esc(r.notes) + "</div>" : "") + "</div>" +
-        badge(r.status) + "</div>";
-    }).join("");
+        badge(r.status) +
+        '<button type="button" data-iv-arch="' + r.id + '" title="' + (r.client_archived ? "Désarchiver" : "Archiver") + '" style="padding:7px 12px;border-radius:999px;border:1px solid rgba(120,150,200,.25);background:transparent;color:#8b98ae;font-weight:700;font-size:12px;cursor:pointer;font-family:\'Archivo\',sans-serif;">' +
+        (r.client_archived ? "Désarchiver" : "🗄️") + "</button>" +
+        "</div>";
+    });
+    host.innerHTML = html + toggle;
+    bindIvControls(host);
+  }
+  function bindIvControls(host) {
+    var t = host.querySelector("#iv-toggle-archived");
+    if (t) t.addEventListener("click", function () {
+      showArchivedIv = !showArchivedIv;
+      renderMyInterventions();
+    });
+    host.querySelectorAll("[data-iv-arch]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var r = myInterventions.find(function (x) { return x.id === b.dataset.ivArch; });
+        if (!r) return;
+        api("cta_interventions?id=eq." + r.id, { method: "PATCH", body: { client_archived: !r.client_archived } })
+          .then(function () {
+            r.client_archived = !r.client_archived;
+            renderMyInterventions();
+          }).catch(function () { showError("Archivage impossible : réessayez plus tard."); });
+      });
+    });
+  }
+  api("cta_interventions?select=*,cta_end_clients(company_name)&order=date.desc").then(function (rows) {
+    myInterventions = rows;
+    renderMyInterventions();
     renderFiches();
   }).catch(function () { showError("Impossible de charger les interventions : reconnectez-vous ou réessayez plus tard."); });
 
