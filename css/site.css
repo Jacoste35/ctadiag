@@ -166,13 +166,13 @@ input::placeholder, textarea::placeholder { color: #5f6d84; }
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     padding-bottom: 4px;
-    margin-left: -20px; margin-right: -20px;
-    padding-left: 20px; padding-right: 20px;
+    margin-left: -18px; margin-right: -18px;
+    padding-left: 18px; padding-right: 18px;
   }
   .tabs-row::-webkit-scrollbar { display: none; }
   .tab { flex-shrink: 0; }
 
-  main.section-pad { padding-top: 26px !important; padding-bottom: 60px !important; }
+  main.section-pad { padding-top: 26px !important; padding-bottom: 60px !important; padding-left: 18px !important; padding-right: 18px !important; }
   .list-row { padding: 14px 16px; gap: 10px; }
 
   /* Formulaires de réponse : bouton sous la zone de texte */
@@ -184,13 +184,18 @@ input::placeholder, textarea::placeholder { color: #5f6d84; }
   .price-head span, .price-row span { font-size: 12.5px !important; }
   .tarif-row { grid-template-columns: 1fr 104px !important; padding-left: 18px !important; padding-right: 18px !important; }
 
-  /* Back-office : édition de la grille sur 2 colonnes */
+  /* Back-office : édition de la grille sur 2 colonnes.
+     min-width:0 partout : les champs rétrécissent au lieu de déborder. */
   .ag-row { grid-template-columns: 1fr 1fr !important; }
   .ag-row input[data-f="label"] { grid-column: 1 / -1; }
+  .ag-row input, .ag-row select { min-width: 0; width: 100%; box-sizing: border-box; }
   .grid-add-form { grid-template-columns: 1fr 1fr !important; }
   .grid-add-form input[id="g-label"] { grid-column: 1 / -1; }
   .grid-add-form button { grid-column: 1 / -1; }
+  .grid-add-form > div { min-width: 0; }
+  .grid-add-form input, .grid-add-form select { min-width: 0; width: 100%; box-sizing: border-box; }
   .blocked-add-form { grid-template-columns: 1fr !important; }
+  .blocked-add-form input { min-width: 0; width: 100%; box-sizing: border-box; }
 
   /* Formulaire de devis : une colonne, padding resserré */
   .form-2col { grid-template-columns: 1fr !important; }
