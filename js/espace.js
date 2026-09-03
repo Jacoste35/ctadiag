@@ -4,6 +4,14 @@
 (function () {
   "use strict";
 
+  // Câblage défensif : si un élément attendu est absent (HTML et JS
+  // désynchronisés par un cache), on ignore au lieu de planter tout le script.
+  function ctaOn(id, ev, fn) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener(ev, fn);
+  }
+
+
   var CFG = window.CTA_CONFIG || {};
   var API = (CFG.supabaseUrl || "").replace(/\/$/, "");
   var KEY = CFG.supabaseAnonKey || "";
@@ -32,7 +40,7 @@
     try { localStorage.removeItem("cta_session"); sessionStorage.removeItem("cta_session"); } catch (e) { /* ignore */ }
     window.location.replace("connexion.html");
   }
-  document.getElementById("logout").addEventListener("click", logout);
+  ctaOn("logout", "click", logout);
 
   function refreshSession() {
     return fetch(API + "/auth/v1/token?grant_type=refresh_token", {
@@ -188,7 +196,7 @@
         window.scrollTo({ top: 0, behavior: "smooth" });
       });
     });
-    document.getElementById("bn-profile").addEventListener("click", function () {
+    ctaOn("bn-profile", "click", function () {
       document.getElementById("profile-btn").click();
     });
     syncBottomNav(window.location.hash.replace("#", "") || "interventions");
@@ -268,7 +276,7 @@
   }).catch(function () { /* non bloquant */ });
 
   /* ---------- Mon profil (coordonnées modifiables) ---------- */
-  document.getElementById("profile-btn").addEventListener("click", function () {
+  ctaOn("profile-btn", "click", function () {
     if (!me) return;
     document.getElementById("pf-company").value = me.company_name || "";
     document.getElementById("pf-contact").value = me.contact_name || "";
@@ -278,10 +286,10 @@
     document.getElementById("profile-msg").hidden = true;
     document.getElementById("profile-modal").hidden = false;
   });
-  document.getElementById("profile-close").addEventListener("click", function () {
+  ctaOn("profile-close", "click", function () {
     document.getElementById("profile-modal").hidden = true;
   });
-  document.getElementById("profile-form").addEventListener("submit", function (ev) {
+  ctaOn("profile-form", "submit", function (ev) {
     ev.preventDefault();
     var msg = document.getElementById("profile-msg");
     var newEmail = document.getElementById("pf-email").value.trim();
@@ -342,7 +350,7 @@
   function showPasswordModal() {
     var modal = document.getElementById("pwd-modal");
     modal.hidden = false;
-    document.getElementById("pwd-form").addEventListener("submit", function (ev) {
+    ctaOn("pwd-form", "submit", function (ev) {
       ev.preventDefault();
       var msg = document.getElementById("pwd-msg");
       var p1 = document.getElementById("pwd-new").value;
@@ -598,10 +606,10 @@
     msg.hidden = false;
     msg.textContent = text;
   }
-  document.getElementById("sign-close").addEventListener("click", function () {
+  ctaOn("sign-close", "click", function () {
     document.getElementById("sign-modal").hidden = true;
   });
-  document.getElementById("sign-form").addEventListener("submit", function (ev) {
+  ctaOn("sign-form", "submit", function (ev) {
     ev.preventDefault();
     if (!currentSignDoc) return;
     if (!document.getElementById("sign-consent").checked) {
@@ -620,7 +628,7 @@
       })
       .catch(function (e) { signMsg("Signature impossible : " + e.message); });
   });
-  document.getElementById("sign-refuse").addEventListener("click", function () {
+  ctaOn("sign-refuse", "click", function () {
     if (!currentSignDoc) return;
     if (!window.confirm("Refuser le devis " + currentSignDoc.reference + " ?")) return;
     var reason = window.prompt("Motif du refus (optionnel) :") || "";
@@ -937,13 +945,13 @@
       document.getElementById("ireq-modal").hidden = false;
       updateIrPrice();
     });
-    document.getElementById("ireq-close").addEventListener("click", function () {
+    ctaOn("ireq-close", "click", function () {
       document.getElementById("ireq-modal").hidden = true;
     });
     function fullAddr(f) {
       return [f.address, [f.postal_code, f.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
     }
-    document.getElementById("ir-endclient").addEventListener("change", function () {
+    ctaOn("ir-endclient", "change", function () {
       document.getElementById("ir-newclient").hidden = this.value !== "__new";
       var f = fiches.find(function (x) { return x.id === this.value; }.bind(this));
       var loc = document.getElementById("ir-loc");
@@ -951,7 +959,7 @@
       updateIrPrice();
     });
     // Matériel concerné : « Autre… » fait apparaître un champ libre
-    document.getElementById("ir-equip").addEventListener("change", function () {
+    ctaOn("ir-equip", "change", function () {
       document.getElementById("ir-equip-autre").hidden = this.value !== "__autre";
     });
     // Tarif affiché : prestation (grille) + déplacement (selon l'adresse), différenciés
@@ -994,13 +1002,13 @@
         hint.innerHTML = lines.map(esc).join("<br>") + (lines.length ? "<br>" : "") + esc(travelLine);
       });
     }
-    document.getElementById("ir-cat").addEventListener("change", updateIrPrice);
+    ctaOn("ir-cat", "change", updateIrPrice);
     var irLocTimer = null;
-    document.getElementById("ir-loc").addEventListener("input", function () {
+    ctaOn("ir-loc", "input", function () {
       clearTimeout(irLocTimer);
       irLocTimer = setTimeout(updateIrPrice, 700);
     });
-    document.getElementById("ireq-form").addEventListener("submit", function (ev) {
+    ctaOn("ireq-form", "submit", function (ev) {
       ev.preventDefault();
       var cat = document.getElementById("ir-cat").value;
       if (!cat) return;
@@ -1116,8 +1124,8 @@
       (dur === "Longue durée (plus d'un mois)" ? " le premier mois (conditions ajustées ensuite avec CTA)." :
        " (tarif dégressif : 1 mois complet = 350 € HT seulement).");
   }
-  document.getElementById("eqr-kind").addEventListener("change", refreshEqrDurations);
-  document.getElementById("eqr-duration").addEventListener("change", refreshEqrPrice);
+  ctaOn("eqr-kind", "change", refreshEqrDurations);
+  ctaOn("eqr-duration", "change", refreshEqrPrice);
   refreshEqrDurations();
   // Distributeur : la demande peut être pour sa société ou pour un client final
   function fillEqrEndclient() {
@@ -1130,7 +1138,7 @@
       '<option value="__new">➕ Pour un nouveau client final…</option>';
     if (current && sel.querySelector('option[value="' + current + '"]')) sel.value = current;
   }
-  document.getElementById("eqr-endclient").addEventListener("change", function () {
+  ctaOn("eqr-endclient", "change", function () {
     document.getElementById("eqr-newclient").hidden = this.value !== "__new";
   });
   function renderEqReqs() {
@@ -1179,7 +1187,7 @@
     }).catch(function () { /* non bloquant */ });
   }
   loadEqReqs();
-  document.getElementById("eqr-form").addEventListener("submit", function (ev) {
+  ctaOn("eqr-form", "submit", function (ev) {
     ev.preventDefault();
     var err = document.getElementById("eqr-err");
     function fail(t) { err.hidden = false; err.textContent = t; }
@@ -1244,7 +1252,7 @@
   var mesStep = 0;
   var mesDevice = "";
   api("cta_setup_guides?select=*").then(function (rows) { setupGuides = rows || []; }).catch(function () { /* non bloquant */ });
-  document.getElementById("mes-device").addEventListener("change", function () {
+  ctaOn("mes-device", "change", function () {
     mesDevice = this.value;
     var host = document.getElementById("mes-bot");
     if (!mesDevice) { host.innerHTML = ""; return; }
@@ -1395,17 +1403,17 @@
 
   // Nouveau ticket
   var ticketForm = document.getElementById("ticket-form");
-  document.getElementById("new-ticket-btn").addEventListener("click", function () {
+  ctaOn("new-ticket-btn", "click", function () {
     ticketForm.hidden = !ticketForm.hidden;
     if (!ticketForm.hidden) document.getElementById("t-subject-sel").focus();
   });
   // Sujet : liste de cas fréquents, ou saisie libre via « Autre sujet »
-  document.getElementById("t-subject-sel").addEventListener("change", function () {
+  ctaOn("t-subject-sel", "change", function () {
     var free = this.value === "__autre";
     document.getElementById("t-subject").hidden = !free;
     if (free) document.getElementById("t-subject").focus();
   });
-  document.getElementById("ticket-cancel").addEventListener("click", function () {
+  ctaOn("ticket-cancel", "click", function () {
     ticketForm.hidden = true;
   });
   ticketForm.addEventListener("submit", function (ev) {
@@ -1437,7 +1445,7 @@
   });
 
   // Réponse dans un ticket
-  document.getElementById("reply-form").addEventListener("submit", function (ev) {
+  ctaOn("reply-form", "submit", function (ev) {
     ev.preventDefault();
     var body = document.getElementById("r-body").value.trim();
     if (!body || !currentTicket) return;
@@ -1457,7 +1465,7 @@
   });
 
   // Archiver / désarchiver un ticket résolu
-  document.getElementById("thread-archive").addEventListener("click", function () {
+  ctaOn("thread-archive", "click", function () {
     var t = tickets.find(function (x) { return x.id === currentTicket; });
     if (!t) return;
     api("cta_tickets?id=eq." + currentTicket, { method: "PATCH", body: { archived: !t.archived } })
@@ -1466,7 +1474,7 @@
   });
 
   // Marquer résolu
-  document.getElementById("thread-resolve").addEventListener("click", function () {
+  ctaOn("thread-resolve", "click", function () {
     if (!currentTicket) return;
     api("cta_tickets?id=eq." + currentTicket, { method: "PATCH", body: { status: "resolu" } })
       .then(function () { return loadTickets(true); })
