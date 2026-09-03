@@ -254,8 +254,10 @@
         (c.phone ? '<a href="tel:' + esc(c.phone.replace(/\s/g, "")) + '" class="btn-primary" style="padding:9px 16px;border-radius:999px;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:12.5px;box-shadow:0 4px 14px rgba(47,123,255,.35);">📞 Appeler</a>' : "") +
         (addr ? '<a href="https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(addr) + '" target="_blank" rel="noopener" ' + GHOST_BTN.replace("cursor:pointer;", "") + ">🗺️ Itinéraire</a>" : "") +
         statusSelect(r.status, ["planifiee", "en_cours", "terminee", "annulee"], "today-status") +
+        rdvButtons(r.id) +
         "</div></div>";
     }).join("");
+    bindRdvActions(host);
     host.querySelectorAll(".today-status").forEach(function (sel) {
       sel.addEventListener("change", function () {
         var id = sel.closest("[data-today-row]").dataset.todayRow;
@@ -302,9 +304,87 @@
             '<div style="margin-top:2px;font-size:12px;color:#8b98ae;">' +
             [c.phone ? "📞 " + esc(c.phone) : "", addr ? "📍 " + esc(addr) : ""].filter(Boolean).join(" &nbsp; ") + "</div>" +
             (r.notes ? '<div style="margin-top:3px;font-size:12px;color:#9fb6d8;">📝 ' + esc(r.notes) + "</div>" : "") +
-            "</div>" + badge(r.status) + "</div>";
+            "</div>" + badge(r.status) +
+            '<div style="display:flex;gap:6px;flex-wrap:wrap;flex-basis:100%;">' + rdvButtons(r.id) + "</div>" +
+            "</div>";
         }).join("") + "</div>";
     }).join("");
+    bindRdvActions(host);
+  }
+
+  /* ---------- Actions rendez-vous : relance, report, annulation ---------- */
+  function afterIvChange() {
+    refreshStats(); renderToday(); renderWeek(); renderCA(); renderInterventions();
+  }
+  var RDV_BTN = 'style="padding:6px 12px;border-radius:999px;border:1px solid rgba(120,150,200,.28);background:transparent;color:#9fb6d8;font-weight:700;font-size:11.5px;cursor:pointer;font-family:\'Archivo\',sans-serif;white-space:nowrap;"';
+  function rdvButtons(id) {
+    return '<button type="button" ' + RDV_BTN + ' data-rdv-remind="' + id + '">📧 Relancer</button>' +
+      '<button type="button" ' + RDV_BTN + ' data-rdv-move="' + id + '">📅 Reporter</button>' +
+      '<button type="button" ' + DANGER_BTN.replace('style="', 'style="white-space:nowrap;') + ' data-rdv-cancel="' + id + '">✕ Annuler</button>';
+  }
+  function bindRdvActions(host) {
+    host.querySelectorAll("[data-rdv-remind]").forEach(function (b) {
+      b.addEventListener("click", function () { remindIv(b.dataset.rdvRemind); });
+    });
+    host.querySelectorAll("[data-rdv-move]").forEach(function (b) {
+      b.addEventListener("click", function () { rescheduleIv(b.dataset.rdvMove); });
+    });
+    host.querySelectorAll("[data-rdv-cancel]").forEach(function (b) {
+      b.addEventListener("click", function () { cancelIv(b.dataset.rdvCancel); });
+    });
+  }
+  function noticeResult(res, okText) {
+    window.alert(res && res.sent ? okText + (res.to ? "\nDestinataire : " + res.to : "")
+      : "E-mail non envoyé : " + ((res && res.reason) || "erreur inconnue"));
+  }
+  function remindIv(id) {
+    var r = interventions.find(function (x) { return x.id === id; });
+    if (!r) return;
+    if (!window.confirm("Envoyer une relance par e-mail à " + clientName(r.partner_id) + " pour le rendez-vous du " + fmtDate(r.date) + (r.time_slot ? " à " + r.time_slot : "") + " ?")) return;
+    fn("send-notice", { intervention_id: id, kind: "relance" })
+      .then(function (res) { noticeResult(res, "Relance envoyée ✓"); })
+      .catch(function (e) { showError("Relance impossible : " + e.message); });
+  }
+  function rescheduleIv(id) {
+    var r = interventions.find(function (x) { return x.id === id; });
+    if (!r) return;
+    var nd = window.prompt("Nouvelle date du rendez-vous (AAAA-MM-JJ) :", r.date || "");
+    if (nd === null) return;
+    nd = nd.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(nd)) { window.alert("Date invalide : utilisez le format AAAA-MM-JJ."); return; }
+    var ns = window.prompt("Nouvelle heure (HH:MM, laisser vide pour « journée ») :", r.time_slot || "");
+    if (ns === null) return;
+    ns = ns.trim();
+    if (ns && !/^\d{2}:\d{2}$/.test(ns)) { window.alert("Heure invalide : utilisez le format HH:MM."); return; }
+    var oldDate = r.date;
+    api("cta_interventions?id=eq." + id, { method: "PATCH", body: { date: nd, time_slot: ns || null } })
+      .then(function () {
+        r.date = nd;
+        r.time_slot = ns || null;
+        afterIvChange();
+        if (window.confirm("Rendez-vous reporté au " + fmtDate(nd) + (ns ? " à " + ns : "") + " ✓\n\nPrévenir le client par e-mail ?")) {
+          return fn("send-notice", { intervention_id: id, kind: "report", new_date: nd, new_slot: ns || null, old_date: oldDate })
+            .then(function (res) { noticeResult(res, "Client prévenu du report ✓"); })
+            .catch(function (e) { showError("E-mail de report impossible : " + e.message); });
+        }
+      })
+      .catch(function () { showError("Report impossible."); });
+  }
+  function cancelIv(id) {
+    var r = interventions.find(function (x) { return x.id === id; });
+    if (!r) return;
+    if (!window.confirm("Annuler le rendez-vous de " + clientName(r.partner_id) + " du " + fmtDate(r.date) + (r.time_slot ? " à " + r.time_slot : "") + " ?")) return;
+    api("cta_interventions?id=eq." + id, { method: "PATCH", body: { status: "annulee" } })
+      .then(function () {
+        r.status = "annulee";
+        afterIvChange();
+        if (window.confirm("Rendez-vous annulé ✓\n\nPrévenir le client par e-mail ?")) {
+          return fn("send-notice", { intervention_id: id, kind: "annulation", old_date: r.date })
+            .then(function (res) { noticeResult(res, "Client prévenu de l'annulation ✓"); })
+            .catch(function (e) { showError("E-mail d'annulation impossible : " + e.message); });
+        }
+      })
+      .catch(function () { showError("Annulation impossible."); });
   }
 
   /* ---------- Programmé plus loin (au-delà de 7 jours) ---------- */
@@ -339,8 +419,10 @@
         '<span style="font-weight:700;color:#dfe6f2;">' + esc(r.type) + "</span>" + sep +
         '<span style="color:#c9d4e6;">' + esc(c.company_name || "?") + (r.cta_end_clients ? " 🏁 " + esc(r.cta_end_clients.company_name) : "") + "</span>" +
         (secteur ? sep + '<span style="color:#38d47a;">📍 ' + esc(secteur) + "</span>" : "") +
+        '<span style="flex:1;"></span><span style="display:flex;gap:6px;flex-wrap:wrap;">' + rdvButtons(r.id) + "</span>" +
         "</div>";
     }).join("");
+    bindRdvActions(host);
   }
 
   /* ---------- Menus du formulaire de planification ---------- */
@@ -430,11 +512,26 @@
   }
 
   /* ---------- Demandes de devis (deux tableaux : garages / distributeurs) ---------- */
+  var showArchQ = { garage: false, distrib: false };
+  var pendingQuoteAccessId = null;
   function quoteRow(q) {
+    var archived = q.status === "archive";
+    var actions = archived
+      ? '<button ' + GHOST_BTN + ' data-quote-reopen="' + q.id + '">Rouvrir</button>' +
+        '<button ' + DANGER_BTN + ' data-quote-del="' + q.id + '">Supprimer</button>'
+      : '<button class="btn-primary" data-quote-access="' + q.id + '" style="padding:8px 16px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:12px;cursor:pointer;">Créer l\'accès →</button>' +
+        (q.status === "new"
+          ? '<button ' + GHOST_BTN + ' data-quote-done="' + q.id + '">✓ Marquer traitée</button>'
+          : '<button ' + GHOST_BTN + ' data-quote-reopen="' + q.id + '">Rouvrir</button>') +
+        '<button ' + GHOST_BTN + ' data-quote-arch="' + q.id + '" title="Archiver la demande">🗄️</button>' +
+        '<button ' + DANGER_BTN + ' data-quote-del="' + q.id + '">Supprimer</button>';
+    return quoteRowBody(q, archived, actions);
+  }
+  function quoteRowBody(q, archived, actions) {
     var services = (q.services || []).map(function (s) {
       return '<span class="badge badge-grey">' + esc(s) + "</span>";
     }).join(" ");
-    return '<div class="list-row" style="align-items:flex-start;">' +
+    return '<div class="list-row" style="align-items:flex-start;' + (archived ? "opacity:.72;" : "") + '">' +
       '<div style="flex:1;min-width:260px;">' +
       '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><span style="font-weight:800;font-size:15px;">' + esc(q.name) + "</span>" + badge(q.status) +
       (!q.client_kind ? ' <span class="badge badge-grey">type non précisé</span>' : "") + "</div>" +
@@ -449,29 +546,44 @@
       (q.message ? '<div style="margin-top:8px;font-size:13px;color:#93a0b5;line-height:1.55;">' + esc(q.message).replace(/\n/g, "<br>") + "</div>" : "") +
       '<div style="margin-top:6px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#5f6d84;">Reçue le ' + esc(fmtDateTime(q.created_at)) + "</div>" +
       "</div>" +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-      '<button class="btn-primary" data-quote-access="' + q.id + '" style="padding:8px 16px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:12px;cursor:pointer;">Créer l\'accès →</button>' +
-      (q.status === "new"
-        ? '<button ' + GHOST_BTN + ' data-quote-done="' + q.id + '">✓ Marquer traitée</button>'
-        : '<button ' + GHOST_BTN + ' data-quote-reopen="' + q.id + '">Rouvrir</button>') +
-      '<button ' + DANGER_BTN + ' data-quote-del="' + q.id + '">Supprimer</button>' +
-      "</div></div>";
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;">' + actions + "</div></div>";
+  }
+  function quoteTable(list, hostId, key, emptyMsg) {
+    var host = document.getElementById(hostId);
+    var actives = list.filter(function (q) { return q.status !== "archive"; });
+    var archives = list.filter(function (q) { return q.status === "archive"; });
+    var html = actives.length ? actives.map(quoteRow).join("")
+      : '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">' + emptyMsg + "</p>";
+    if (archives.length) {
+      html += '<div style="padding:12px 24px;"><button type="button" data-quote-toggle="' + key + '" style="padding:9px 14px;border-radius:999px;border:1px dashed rgba(120,150,200,.3);background:transparent;color:#8b98ae;font-weight:700;font-size:12.5px;cursor:pointer;font-family:\'Archivo\',sans-serif;">' +
+        (showArchQ[key] ? "▾ 🗄️ Archives (" + archives.length + ") : replier" : "▸ 🗄️ Archives (" + archives.length + ") : dérouler") + "</button></div>";
+      if (showArchQ[key]) html += archives.map(quoteRow).join("");
+    }
+    host.innerHTML = html;
+    return host;
   }
   function renderQuotes() {
-    var hostG = document.getElementById("quotes-list-garage");
-    var hostD = document.getElementById("quotes-list-distrib");
-    var garages = quotes.filter(function (q) { return q.client_kind !== "distributeur"; });
-    var distribs = quotes.filter(function (q) { return q.client_kind === "distributeur"; });
-    hostG.innerHTML = garages.length ? garages.map(quoteRow).join("")
-      : '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Aucune demande de garage pour le moment.</p>';
-    hostD.innerHTML = distribs.length ? distribs.map(quoteRow).join("")
-      : '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Aucune demande de distributeur pour le moment.</p>';
+    var hostG = quoteTable(
+      quotes.filter(function (q) { return q.client_kind !== "distributeur"; }),
+      "quotes-list-garage", "garage", "Aucune demande de garage pour le moment.");
+    var hostD = quoteTable(
+      quotes.filter(function (q) { return q.client_kind === "distributeur"; }),
+      "quotes-list-distrib", "distrib", "Aucune demande de distributeur pour le moment.");
     [hostG, hostD].forEach(function (host) {
+      host.querySelectorAll("[data-quote-toggle]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          showArchQ[b.dataset.quoteToggle] = !showArchQ[b.dataset.quoteToggle];
+          renderQuotes();
+        });
+      });
       host.querySelectorAll("[data-quote-access]").forEach(function (b) {
         b.addEventListener("click", function () { openClientFormFromQuote(b.dataset.quoteAccess); });
       });
       host.querySelectorAll("[data-quote-done]").forEach(function (b) {
         b.addEventListener("click", function () { setQuoteStatus(b.dataset.quoteDone, "traite"); });
+      });
+      host.querySelectorAll("[data-quote-arch]").forEach(function (b) {
+        b.addEventListener("click", function () { setQuoteStatus(b.dataset.quoteArch, "archive"); });
       });
       host.querySelectorAll("[data-quote-reopen]").forEach(function (b) {
         b.addEventListener("click", function () { setQuoteStatus(b.dataset.quoteReopen, "new"); });
@@ -492,6 +604,7 @@
   function openClientFormFromQuote(id) {
     var q = quotes.find(function (x) { return x.id === id; });
     if (!q) return;
+    pendingQuoteAccessId = id; // la demande sera archivée une fois le compte créé
     showTab("clients");
     clientForm.hidden = false;
     document.getElementById("c-email").value = /\S+@\S+\.\S+/.test(q.contact) ? q.contact : "";
@@ -602,6 +715,14 @@
       if (res && res.password) {
         window.alert("Compte créé ✓\n\nMot de passe provisoire : " + res.password +
           "\n\nCommuniquez-le au client : il devra le changer à sa première connexion.");
+      }
+      // Compte ouvert depuis une demande de devis : la demande est archivée
+      if (pendingQuoteAccessId) {
+        var qid = pendingQuoteAccessId;
+        pendingQuoteAccessId = null;
+        return api("quote_requests?id=eq." + qid, { method: "PATCH", body: { status: "archive" } })
+          .catch(function () { /* la demande restera à archiver à la main */ })
+          .then(function () { loadAll(); });
       }
       loadAll();
     }).catch(function (e) { showError("Création du compte : " + e.message); });
