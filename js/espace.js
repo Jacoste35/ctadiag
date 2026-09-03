@@ -768,6 +768,40 @@
       .catch(function () { showError("Création de la fiche impossible."); });
   });
 
+  /* ---------- Frais de déplacement (paramètres du gérant) ---------- */
+  var billing = null;
+  api("cta_billing_settings?select=*").then(function (rows) {
+    billing = (rows && rows[0]) || null;
+  }).catch(function () { /* non bloquant */ });
+  function geocodeAddr(q) {
+    return fetch("https://api-adresse.data.gouv.fr/search/?q=" + encodeURIComponent(q) + "&limit=1")
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var f = j.features && j.features[0];
+        return f ? { lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0] } : null;
+      })
+      .catch(function () { return null; });
+  }
+  function haversineKm(lat1, lng1, lat2, lng2) {
+    var rad = Math.PI / 180;
+    var dLat = (lat2 - lat1) * rad;
+    var dLng = (lng2 - lng1) * rad;
+    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+  // Estimation routière : vol d'oiseau x 1,3 puis aller-retour
+  function travelFeeFor(address) {
+    if (!billing || billing.base_lat == null || !address) return Promise.resolve(null);
+    return geocodeAddr(address).then(function (pt) {
+      if (!pt) return null;
+      var roundTrip = Math.round(haversineKm(billing.base_lat, billing.base_lng, pt.lat, pt.lng) * 1.3 * 2);
+      var extraKm = Math.max(0, roundTrip - (billing.included_km || 70));
+      var fee = Math.round(extraKm * Number(billing.price_per_km || 0.12) * 100) / 100;
+      return { km: roundTrip, extraKm: extraKm, fee: fee };
+    });
+  }
+
   /* ---------- Demandes d'intervention (distributeurs) ---------- */
   var myRequests = [];
   var REQ_STATUS = { nouvelle: ["Envoyée", "badge-blue"], acceptee: ["Planifiée ✓", "badge-green"], refusee: ["Refusée", "badge-grey"] };
@@ -812,8 +846,12 @@
     slotSel.innerHTML = slotOpts;
     ireqBtn.addEventListener("click", function () {
       fillFicheSelect();
+      // Client direct : le lieu est chez lui, son adresse est proposée d'office
+      var loc = document.getElementById("ir-loc");
+      if (clientType !== "distributeur" && me && me.address && !loc.value.trim()) loc.value = me.address;
       document.getElementById("ireq-msg").hidden = true;
       document.getElementById("ireq-modal").hidden = false;
+      updateIrPrice();
     });
     document.getElementById("ireq-close").addEventListener("click", function () {
       document.getElementById("ireq-modal").hidden = true;
@@ -826,24 +864,57 @@
       var f = fiches.find(function (x) { return x.id === this.value; }.bind(this));
       var loc = document.getElementById("ir-loc");
       if (f && !loc.value.trim() && fullAddr(f)) loc.value = fullAddr(f);
+      updateIrPrice();
     });
     // Matériel concerné : « Autre… » fait apparaître un champ libre
     document.getElementById("ir-equip").addEventListener("change", function () {
       document.getElementById("ir-equip-autre").hidden = this.value !== "__autre";
     });
-    // Prix de la prestation sélectionnée (grille : prix distributeur ou tarif public)
-    document.getElementById("ir-cat").addEventListener("change", function () {
+    // Tarif affiché : prestation (grille) + déplacement (selon l'adresse), différenciés
+    var irPriceSeq = 0;
+    function updateIrPrice() {
       var hint = document.getElementById("ir-price");
-      var cat = this.value;
+      var cat = document.getElementById("ir-cat").value;
+      var loc = document.getElementById("ir-loc").value.trim();
       var distrib = clientType === "distributeur";
       var prices = (gridRows || [])
         .filter(function (g) { return g.category === cat && (distrib ? g.partner_price_ht : g.public_price_ht) != null; })
         .map(function (g) { return Number(distrib ? g.partner_price_ht : g.public_price_ht); });
-      if (!cat || !prices.length) { hint.hidden = true; return; }
-      var min = Math.min.apply(null, prices);
+      if (!cat && !loc) { hint.hidden = true; return; }
+      var lines = [];
+      if (cat && prices.length) {
+        var min = Math.min.apply(null, prices);
+        lines.push("🔧 Prestation" + (distrib ? " (tarif distributeur)" : "") + " : " + (prices.length > 1 ? "à partir de " : "") +
+          min.toLocaleString("fr-FR", { minimumFractionDigits: min % 1 ? 2 : 0 }) + " € HT");
+      }
+      var inclKm = billing ? (billing.included_km || 70) : 70;
+      var perKm = billing ? Number(billing.price_per_km || 0.12) : 0.12;
+      var seq = ++irPriceSeq;
       hint.hidden = false;
-      hint.textContent = "💶 " + (distrib ? "Tarif distributeur : " : "Tarif : ") + (prices.length > 1 ? "à partir de " : "") +
-        min.toLocaleString("fr-FR", { minimumFractionDigits: min % 1 ? 2 : 0 }) + " € HT (facturé après intervention)";
+      hint.innerHTML = lines.map(esc).join("<br>") +
+        (lines.length ? "<br>" : "") +
+        (loc ? "🚗 Déplacement : calcul en cours…"
+             : "🚗 Déplacement : " + inclKm + " km A/R inclus, puis " + perKm.toLocaleString("fr-FR") + " €/km (selon l'adresse)");
+      if (!loc) return;
+      travelFeeFor(loc).then(function (t) {
+        if (seq !== irPriceSeq) return; // une saisie plus récente a relancé le calcul
+        var travelLine;
+        if (!t) {
+          travelLine = "🚗 Déplacement : confirmé par CTA selon l'adresse (" + inclKm + " km A/R inclus, puis " + perKm.toLocaleString("fr-FR") + " €/km)";
+        } else if (t.fee <= 0) {
+          travelLine = "🚗 Déplacement : inclus (" + t.km + " km A/R estimés)";
+        } else {
+          travelLine = "🚗 Déplacement : + " + t.fee.toLocaleString("fr-FR", { minimumFractionDigits: t.fee % 1 ? 2 : 0 }) +
+            " € HT (" + t.km + " km A/R estimés · " + inclKm + " km inclus puis " + perKm.toLocaleString("fr-FR") + " €/km)";
+        }
+        hint.innerHTML = lines.map(esc).join("<br>") + (lines.length ? "<br>" : "") + esc(travelLine);
+      });
+    }
+    document.getElementById("ir-cat").addEventListener("change", updateIrPrice);
+    var irLocTimer = null;
+    document.getElementById("ir-loc").addEventListener("input", function () {
+      clearTimeout(irLocTimer);
+      irLocTimer = setTimeout(updateIrPrice, 700);
     });
     document.getElementById("ireq-form").addEventListener("submit", function (ev) {
       ev.preventDefault();

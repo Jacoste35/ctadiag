@@ -931,21 +931,128 @@
       });
     });
   }
+  /* ---------- Frais de déplacement ---------- */
+  var billing = null;
+  function loadBilling() {
+    return api("cta_billing_settings?select=*").then(function (rows) {
+      billing = (rows && rows[0]) || null;
+      if (billing) {
+        document.getElementById("bs-address").value = billing.base_address || "";
+        document.getElementById("bs-included").value = billing.included_km == null ? 70 : billing.included_km;
+        document.getElementById("bs-price").value = billing.price_per_km == null ? 0.12 : billing.price_per_km;
+      }
+    }).catch(function () { /* non bloquant */ });
+  }
+  loadBilling();
+  function geocodeAddr(q) {
+    return fetch("https://api-adresse.data.gouv.fr/search/?q=" + encodeURIComponent(q) + "&limit=1")
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var f = j.features && j.features[0];
+        return f ? { lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0] } : null;
+      })
+      .catch(function () { return null; });
+  }
+  function haversineKm(lat1, lng1, lat2, lng2) {
+    var rad = Math.PI / 180;
+    var dLat = (lat2 - lat1) * rad;
+    var dLng = (lng2 - lng1) * rad;
+    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+  // Estimation routière : vol d'oiseau x 1,3 puis aller-retour
+  function travelFeeFor(address) {
+    if (!billing || billing.base_lat == null || !address) return Promise.resolve(null);
+    return geocodeAddr(address).then(function (pt) {
+      if (!pt) return null;
+      var roundTrip = Math.round(haversineKm(billing.base_lat, billing.base_lng, pt.lat, pt.lng) * 1.3 * 2);
+      var extraKm = Math.max(0, roundTrip - (billing.included_km || 70));
+      var fee = Math.round(extraKm * Number(billing.price_per_km || 0.12) * 100) / 100;
+      return { km: roundTrip, extraKm: extraKm, fee: fee };
+    });
+  }
+  document.getElementById("bs-form").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var msg = document.getElementById("bs-msg");
+    var addr = document.getElementById("bs-address").value.trim();
+    var included = document.getElementById("bs-included").value;
+    var price = document.getElementById("bs-price").value;
+    if (!addr) return;
+    msg.hidden = false;
+    msg.style.color = "#7fadff";
+    msg.textContent = "Localisation de l'adresse…";
+    geocodeAddr(addr).then(function (pt) {
+      var body = {
+        base_address: addr,
+        included_km: included === "" ? 70 : Number(included),
+        price_per_km: price === "" ? 0.12 : Number(price)
+      };
+      if (pt) { body.base_lat = pt.lat; body.base_lng = pt.lng; }
+      return api("cta_billing_settings?id=eq.1", { method: "PATCH", body: body }).then(function () {
+        billing = Object.assign(billing || { id: 1 }, body);
+        msg.textContent = pt
+          ? "Enregistré ✓ Point de départ localisé (" + pt.lat.toFixed(4) + ", " + pt.lng.toFixed(4) + ")."
+          : "Enregistré ✓ mais l'adresse n'a pas pu être localisée : les distances gardent l'ancien point de départ.";
+        if (!pt) msg.style.color = "#ffbe50";
+      });
+    }).catch(function () {
+      msg.style.color = "#ff8c8c";
+      msg.textContent = "Enregistrement impossible, réessayez.";
+    });
+  });
+
   // Type sélectionné : le prix préconfiguré de la grille s'applique automatiquement
-  // (prix distributeur ou tarif public selon le client choisi), modifiable ensuite.
-  function applyPresetPrice() {
+  // (prix distributeur ou tarif public selon le client choisi) + frais de
+  // déplacement estimés selon le lieu ; modifiable ensuite.
+  var lastTravel = null;
+  function basePresetPrice() {
     var cat = document.getElementById("iv-type").value;
-    var amount = document.getElementById("iv-amount");
-    if (!cat || cat === "__autre") return;
-    if (amount.value !== "" && amount.dataset.auto !== "1") return;
+    if (!cat || cat === "__autre") return null;
     var distrib = typeOfPartner(document.getElementById("iv-client").value) === "distributeur";
     var prices = grid
       .filter(function (g) { return g.category === cat && (distrib ? g.partner_price_ht : g.public_price_ht) != null; })
       .map(function (g) { return Number(distrib ? g.partner_price_ht : g.public_price_ht); });
-    if (!prices.length) return;
-    amount.value = Math.min.apply(null, prices);
+    return prices.length ? Math.min.apply(null, prices) : null;
+  }
+  function applyPresetPrice() {
+    var amount = document.getElementById("iv-amount");
+    if (amount.value !== "" && amount.dataset.auto !== "1") return;
+    var base = basePresetPrice();
+    if (base == null) return;
+    var total = base + (lastTravel && lastTravel.fee > 0 ? lastTravel.fee : 0);
+    amount.value = Math.round(total * 100) / 100;
     amount.dataset.auto = "1";
   }
+  var travelSeq = 0;
+  function updateTravelHint() {
+    var hint = document.getElementById("iv-travel");
+    var loc = document.getElementById("iv-loc").value.trim();
+    lastTravel = null;
+    if (!loc || !billing) { hint.hidden = true; applyPresetPrice(); return; }
+    var seq = ++travelSeq;
+    hint.hidden = false;
+    hint.textContent = "🚗 Déplacement : calcul en cours…";
+    travelFeeFor(loc).then(function (t) {
+      if (seq !== travelSeq) return;
+      lastTravel = t;
+      if (!t) {
+        hint.textContent = "🚗 Déplacement : adresse non localisée (frais à ajouter à la main si besoin).";
+      } else if (t.fee <= 0) {
+        hint.textContent = "🚗 Déplacement : inclus (" + t.km + " km A/R estimés).";
+      } else {
+        hint.textContent = "🚗 Déplacement : + " + t.fee.toLocaleString("fr-FR") + " € HT (" + t.km +
+          " km A/R estimés · " + (billing.included_km || 70) + " km inclus puis " +
+          Number(billing.price_per_km || 0.12).toLocaleString("fr-FR") + " €/km), ajouté au montant automatique.";
+      }
+      applyPresetPrice();
+    });
+  }
+  var ivLocTimer = null;
+  document.getElementById("iv-loc").addEventListener("input", function () {
+    clearTimeout(ivLocTimer);
+    ivLocTimer = setTimeout(updateTravelHint, 700);
+  });
   document.getElementById("iv-amount").addEventListener("input", function () { this.dataset.auto = "0"; });
   // Type / matériel : « Autre… » fait apparaître un champ libre
   document.getElementById("iv-type").addEventListener("change", function () {
@@ -973,6 +1080,7 @@
       loc.value = c.address;
       loc.dataset.auto = "1";
     }
+    updateTravelHint();
   });
   document.getElementById("iv-endclient").addEventListener("change", function () {
     var e = endClients.find(function (x) { return x.id === document.getElementById("iv-endclient").value; });
@@ -981,6 +1089,7 @@
       loc.value = e.address;
       loc.dataset.auto = "1";
     }
+    updateTravelHint();
   });
   document.getElementById("iv-loc").addEventListener("input", function () { this.dataset.auto = "0"; });
 
@@ -1131,7 +1240,9 @@
     var p = distribPriceFor(r.category);
     if (p && document.getElementById("iv-amount").value === "") {
       document.getElementById("iv-amount").value = p.min;
+      document.getElementById("iv-amount").dataset.auto = "1";
     }
+    updateTravelHint();
     showTab("interventions");
     document.getElementById("interv-form").scrollIntoView({ behavior: "smooth", block: "center" });
   }
