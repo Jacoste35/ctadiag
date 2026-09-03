@@ -4,6 +4,14 @@
 (function () {
   "use strict";
 
+  // Câblage défensif : si un élément attendu est absent (HTML et JS
+  // désynchronisés par un cache), on ignore au lieu de planter tout le script.
+  function ctaOn(id, ev, fn) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener(ev, fn);
+  }
+
+
   var CFG = window.CTA_CONFIG || {};
   var API = (CFG.supabaseUrl || "").replace(/\/$/, "");
   var KEY = CFG.supabaseAnonKey || "";
@@ -24,7 +32,7 @@
     try { localStorage.removeItem("cta_session"); sessionStorage.removeItem("cta_session"); } catch (e) { /* ignore */ }
     window.location.replace("connexion.html");
   }
-  document.getElementById("logout").addEventListener("click", logout);
+  ctaOn("logout", "click", logout);
 
   function refreshSession() {
     return fetch(API + "/auth/v1/token?grant_type=refresh_token", {
@@ -763,7 +771,7 @@
   }
 
   var clientForm = document.getElementById("client-form");
-  document.getElementById("new-client-btn").addEventListener("click", function () {
+  ctaOn("new-client-btn", "click", function () {
     clientForm.hidden = !clientForm.hidden;
     if (!clientForm.hidden) document.getElementById("c-email").focus();
   });
@@ -1021,7 +1029,7 @@
       return { km: roundTrip, extraKm: extraKm, fee: fee };
     });
   }
-  document.getElementById("bs-form").addEventListener("submit", function (ev) {
+  ctaOn("bs-form", "submit", function (ev) {
     ev.preventDefault();
     var msg = document.getElementById("bs-msg");
     var addr = document.getElementById("bs-address").value.trim();
@@ -1111,18 +1119,18 @@
     });
   }
   var ivLocTimer = null;
-  document.getElementById("iv-loc").addEventListener("input", function () {
+  ctaOn("iv-loc", "input", function () {
     clearTimeout(ivLocTimer);
     ivLocTimer = setTimeout(updateTravelHint, 700);
   });
-  document.getElementById("iv-amount").addEventListener("input", function () { this.dataset.auto = "0"; });
-  document.getElementById("iv-km").addEventListener("input", function () { this.dataset.auto = "0"; });
+  ctaOn("iv-amount", "input", function () { this.dataset.auto = "0"; });
+  ctaOn("iv-km", "input", function () { this.dataset.auto = "0"; });
   // Type / matériel : « Autre… » fait apparaître un champ libre
-  document.getElementById("iv-type").addEventListener("change", function () {
+  ctaOn("iv-type", "change", function () {
     document.getElementById("iv-type-autre").hidden = this.value !== "__autre";
     applyPresetPrice();
   });
-  document.getElementById("iv-equip").addEventListener("change", function () {
+  ctaOn("iv-equip", "change", function () {
     document.getElementById("iv-equip-autre").hidden = this.value !== "__autre";
   });
   // Client sélectionné : options de client final (fiches du distributeur) + lieu pré-rempli
@@ -1134,7 +1142,7 @@
     sel.innerHTML = '<option value="">Client final (optionnel)</option>' +
       ecs.map(function (e) { return '<option value="' + e.id + '">🏁 ' + esc(e.company_name) + "</option>"; }).join("");
   }
-  document.getElementById("iv-client").addEventListener("change", function () {
+  ctaOn("iv-client", "change", function () {
     updateEndClientOptions();
     applyPresetPrice();
     var c = clients.find(function (x) { return x.id === document.getElementById("iv-client").value; });
@@ -1145,7 +1153,7 @@
     }
     updateTravelHint();
   });
-  document.getElementById("iv-endclient").addEventListener("change", function () {
+  ctaOn("iv-endclient", "change", function () {
     var e = endClients.find(function (x) { return x.id === document.getElementById("iv-endclient").value; });
     var loc = document.getElementById("iv-loc");
     if (e && e.address && (!loc.value.trim() || loc.dataset.auto === "1")) {
@@ -1154,7 +1162,7 @@
     }
     updateTravelHint();
   });
-  document.getElementById("iv-loc").addEventListener("input", function () { this.dataset.auto = "0"; });
+  ctaOn("iv-loc", "input", function () { this.dataset.auto = "0"; });
 
   function bindAiToggle(host) {
     var t = host.querySelector("#ai-toggle-archived");
@@ -1164,7 +1172,7 @@
     });
   }
 
-  document.getElementById("interv-form").addEventListener("submit", function (ev) {
+  ctaOn("interv-form", "submit", function (ev) {
     ev.preventDefault();
     var typeSel = document.getElementById("iv-type");
     var catVal = typeSel.value;
@@ -1418,7 +1426,7 @@
       });
     });
   }
-  document.getElementById("grid-add").addEventListener("submit", function (ev) {
+  ctaOn("grid-add", "submit", function (ev) {
     ev.preventDefault();
     var pub = document.getElementById("g-public").value;
     var part = document.getElementById("g-partner").value;
@@ -1547,7 +1555,7 @@
       });
     });
   }
-  document.getElementById("eq-form").addEventListener("submit", function (ev) {
+  ctaOn("eq-form", "submit", function (ev) {
     ev.preventDefault();
     var body = {
       name: document.getElementById("eq-name").value.trim(),
@@ -1836,8 +1844,8 @@
     document.getElementById("sg-mode").textContent = "Nouveau guide";
     document.getElementById("sg-cancel").hidden = true;
   }
-  document.getElementById("sg-cancel").addEventListener("click", resetSgForm);
-  document.getElementById("sg-form").addEventListener("submit", function (ev) {
+  ctaOn("sg-cancel", "click", resetSgForm);
+  ctaOn("sg-form", "submit", function (ev) {
     ev.preventDefault();
     var body = {
       device: document.getElementById("sg-device").value.trim(),
@@ -1948,13 +1956,13 @@
         }).catch(function () { showError("Déblocage impossible."); });
     });
   }
-  document.getElementById("cal-prev").addEventListener("click", function () {
+  ctaOn("cal-prev", "click", function () {
     if (!calMonth) return;
     calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1);
     calSelectedDay = null;
     renderCalendar();
   });
-  document.getElementById("cal-next").addEventListener("click", function () {
+  ctaOn("cal-next", "click", function () {
     if (!calMonth) return;
     calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1);
     calSelectedDay = null;
@@ -1979,7 +1987,7 @@
         var input = document.getElementById("cal-url");
         input.value = url;
         document.getElementById("cal-webcal").href = url.replace(/^https:/, "webcal:");
-        document.getElementById("cal-copy").addEventListener("click", function () {
+        ctaOn("cal-copy", "click", function () {
           var btn = this;
           function done() { btn.textContent = "Copié ✓"; setTimeout(function () { btn.textContent = "Copier le lien"; }, 2000); }
           if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -1998,7 +2006,7 @@
   setupCalendarSync();
 
   // Export ponctuel .ics (généré depuis les données chargées)
-  document.getElementById("cal-ics").addEventListener("click", function () {
+  ctaOn("cal-ics", "click", function () {
     function icsEsc(s) {
       return String(s || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
     }
@@ -2058,7 +2066,7 @@
       });
     });
   }
-  document.getElementById("blocked-add").addEventListener("submit", function (ev) {
+  ctaOn("blocked-add", "submit", function (ev) {
     ev.preventDefault();
     var day = document.getElementById("b-day").value;
     if (!day) return;

@@ -5,6 +5,14 @@
 (function () {
   "use strict";
 
+  // Câblage défensif : si un élément attendu est absent (HTML et JS
+  // désynchronisés par un cache), on ignore au lieu de planter tout le script.
+  function ctaOn(id, ev, fn) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener(ev, fn);
+  }
+
+
   var CFG = window.CTA_CONFIG || {};
   var API = (CFG.supabaseUrl || "").replace(/\/$/, "");
   var KEY = CFG.supabaseAnonKey || "";
@@ -25,7 +33,7 @@
     try { localStorage.removeItem("cta_session"); sessionStorage.removeItem("cta_session"); } catch (e) { /* ignore */ }
     window.location.replace("connexion.html");
   }
-  document.getElementById("logout").addEventListener("click", logout);
+  ctaOn("logout", "click", logout);
 
   function refreshSession() {
     return fetch(API + "/auth/v1/token?grant_type=refresh_token", {
@@ -264,7 +272,7 @@
     });
   }
 
-  document.getElementById("at-archive").addEventListener("click", function () {
+  ctaOn("at-archive", "click", function () {
     var t = tickets.find(function (x) { return x.id === currentTicket; });
     if (!t) return;
     api("cta_tickets?id=eq." + currentTicket, { method: "PATCH", body: { archived: !t.archived } })
@@ -272,7 +280,7 @@
       .catch(function () { showError("Archivage impossible."); });
   });
 
-  document.getElementById("at-status").addEventListener("change", function () {
+  ctaOn("at-status", "change", function () {
     if (!currentTicket) return;
     // Un ticket fermé part automatiquement aux archives
     var body = this.value === "ferme" ? { status: "ferme", archived: true } : { status: this.value };
@@ -281,7 +289,7 @@
       .catch(function () { showError("Mise à jour du ticket impossible."); });
   });
 
-  document.getElementById("at-reply").addEventListener("submit", function (ev) {
+  ctaOn("at-reply", "submit", function (ev) {
     ev.preventDefault();
     var body = document.getElementById("at-body").value.trim();
     if (!body || !currentTicket) return;

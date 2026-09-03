@@ -5,6 +5,14 @@
 (function () {
   "use strict";
 
+  // Câblage défensif : si un élément attendu est absent (HTML et JS
+  // désynchronisés par un cache), on ignore au lieu de planter tout le script.
+  function ctaOn(id, ev, fn) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener(ev, fn);
+  }
+
+
   var CFG = window.CTA_CONFIG || {};
   var API = (CFG.supabaseUrl || "").replace(/\/$/, "");
   var KEY = CFG.supabaseAnonKey || "";
@@ -25,7 +33,7 @@
     try { localStorage.removeItem("cta_session"); sessionStorage.removeItem("cta_session"); } catch (e) { /* ignore */ }
     window.location.replace("connexion.html");
   }
-  document.getElementById("logout").addEventListener("click", logout);
+  ctaOn("logout", "click", logout);
 
   function refreshSession() {
     return fetch(API + "/auth/v1/token?grant_type=refresh_token", {
@@ -194,9 +202,9 @@
     document.getElementById("ar-mode").textContent = "Nouvelle réponse automatique";
     document.getElementById("ar-cancel").hidden = true;
   }
-  document.getElementById("ar-cancel").addEventListener("click", resetArForm);
+  ctaOn("ar-cancel", "click", resetArForm);
 
-  document.getElementById("ar-form").addEventListener("submit", function (ev) {
+  ctaOn("ar-form", "submit", function (ev) {
     ev.preventDefault();
     var keywords = document.getElementById("ar-keywords").value
       .split(",")
