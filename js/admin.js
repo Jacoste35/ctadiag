@@ -193,10 +193,10 @@
   }).catch(function () { showError("Impossible de vérifier vos droits : reconnectez-vous."); });
 
   /* ---------- Onglets ---------- */
-  var TAB_NAMES = ["demandes", "clients", "interventions", "grille", "materiel", "agenda"];
+  var TAB_NAMES = ["accueil", "demandes", "clients", "interventions", "grille", "materiel", "agenda"];
   var tabs = document.querySelectorAll(".tab");
   function activateTab(name) {
-    if (TAB_NAMES.indexOf(name) === -1) name = "demandes";
+    if (TAB_NAMES.indexOf(name) === -1) name = "accueil";
     tabs.forEach(function (x) { x.classList.toggle("active", x.dataset.tab === name); });
     TAB_NAMES.forEach(function (n) {
       document.getElementById("tab-" + n).hidden = n !== name;
@@ -221,6 +221,7 @@
   // Menu bas façon application (téléphone) : une page par icône
   (function buildBottomNav() {
     var items = [
+      ["accueil", '<img src="assets/logo-cta-transparent.png" alt="" class="bn-logo">', "Accueil"],
       ["demandes", "📥", "Contacts"],
       ["clients", "👥", "Clients"],
       ["interventions", "🛠️", "Interv."],
@@ -230,7 +231,7 @@
     ];
     var nav = document.getElementById("bottom-nav");
     nav.innerHTML = items.map(function (it) {
-      return '<button type="button" class="bn-item' + (it[0] === "demandes" ? " active" : "") + '" data-bn-tab="' + it[0] + '"><span class="bn-ico">' + it[1] + "</span><span>" + it[2] + "</span></button>";
+      return '<button type="button" class="bn-item' + (it[0] === "accueil" ? " active" : "") + '" data-bn-tab="' + it[0] + '"><span class="bn-ico">' + it[1] + "</span><span>" + it[2] + "</span></button>";
     }).join("") +
       '<a class="bn-item" href="messagerie.html" style="text-decoration:none;"><span class="bn-ico">💬</span><span>Messages</span></a>';
     nav.querySelectorAll("[data-bn-tab]").forEach(function (b) {

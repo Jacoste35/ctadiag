@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/site.css?v=20260904">
+<link rel="stylesheet" href="css/site.css?v=20260905">
 </head>
 <body class="with-bottom-nav">
 
@@ -39,6 +39,21 @@
 
   <main class="section-pad" style="position:relative;max-width:1200px;margin:0 auto;padding:44px 40px 90px;">
 
+    <p id="portal-error" hidden style="margin:0 0 24px;padding:14px 18px;border-radius:12px;background:rgba(255,110,110,.08);border:1px solid rgba(255,110,110,.35);color:#ff8c8c;font-size:14px;"></p>
+
+    <div class="tabs-row" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:26px;">
+      <button class="tab active" data-tab="accueil">Accueil</button>
+      <button class="tab" data-tab="demandes">Demandes de contact</button>
+      <button class="tab" data-tab="clients">Clients</button>
+      <button class="tab" data-tab="interventions">Interventions</button>
+      <button class="tab" data-tab="grille">Tarifs</button>
+      <button class="tab" data-tab="materiel">Matériel</button>
+      <a class="tab" href="messagerie.html" style="text-decoration:none;display:inline-flex;align-items:center;">💬 Messagerie ↗</a>
+      <button class="tab" data-tab="agenda">Agenda</button>
+    </div>
+
+    <!-- Accueil : infos courantes (planning, indicateurs, chiffre d'affaires) -->
+    <section id="tab-accueil">
     <div style="margin-bottom:30px;">
       <h1 style="margin:0 0 8px;font-size:clamp(24px,3.4vw,34px);font-weight:900;">Pilotage <span style="background:linear-gradient(90deg,#c9d4e6,#4d8dff);-webkit-background-clip:text;background-clip:text;color:transparent;">CTA</span></h1>
       <p style="margin:0;color:#9aa6ba;font-size:15px;">Demandes de contact, clients, interventions, tarifs, matériel et agenda : tout se gère ici. La messagerie a son espace dédié, la facturation passe par votre site bancaire.</p>
@@ -106,21 +121,10 @@
       </div>
       <p id="ca-note" hidden style="margin:12px 0 0;font-size:12px;color:#ffbe50;"></p>
     </div>
-
-    <p id="portal-error" hidden style="margin:0 0 24px;padding:14px 18px;border-radius:12px;background:rgba(255,110,110,.08);border:1px solid rgba(255,110,110,.35);color:#ff8c8c;font-size:14px;"></p>
-
-    <div class="tabs-row" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:26px;">
-      <button class="tab active" data-tab="demandes">Demandes de contact</button>
-      <button class="tab" data-tab="clients">Clients</button>
-      <button class="tab" data-tab="interventions">Interventions</button>
-      <button class="tab" data-tab="grille">Tarifs</button>
-      <button class="tab" data-tab="materiel">Matériel</button>
-      <a class="tab" href="messagerie.html" style="text-decoration:none;display:inline-flex;align-items:center;">💬 Messagerie ↗</a>
-      <button class="tab" data-tab="agenda">Agenda</button>
-    </div>
+    </section>
 
     <!-- Demandes de devis -->
-    <section id="tab-demandes">
+    <section id="tab-demandes" hidden>
       <p style="margin:0 0 16px;color:#9aa6ba;font-size:14px;">Chaque demandeur indique s'il est <strong style="color:#7fadff;">garage / atelier</strong> ou <strong style="color:#38d47a;">distributeur</strong> : créez-lui l'accès qui convient en un clic depuis sa demande.</p>
       <div class="panel-card" style="overflow:hidden;margin-bottom:20px;">
         <div style="padding:16px 24px;background:rgba(47,123,255,.08);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#7fadff;">🔧 Garages et ateliers (clients directs)</div>
@@ -334,8 +338,8 @@
 <!-- Menu bas façon application (téléphone) -->
 <nav id="bottom-nav" class="bottom-nav"></nav>
 
-<script src="js/config.js?v=20260904"></script>
-<script src="js/admin.js?v=20260904"></script>
-<script src="js/pwa.js?v=20260904"></script>
+<script src="js/config.js?v=20260905"></script>
+<script src="js/admin.js?v=20260905"></script>
+<script src="js/pwa.js?v=20260905"></script>
 </body>
 </html>

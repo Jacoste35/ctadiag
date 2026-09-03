@@ -149,10 +149,10 @@
   /* ---------- Navigation : onglets (ordinateur) + menu bas (téléphone) ----------
      Chaque rubrique a sa propre « page » via le hash de l'URL : le bouton
      retour du téléphone fonctionne comme dans une application. */
-  var TAB_NAMES = ["interventions", "documents", "grille", "clients", "materiel", "mes", "messagerie"];
+  var TAB_NAMES = ["accueil", "interventions", "documents", "grille", "clients", "materiel", "mes", "messagerie"];
   var tabs = document.querySelectorAll(".tab");
   function activateTab(name) {
-    if (TAB_NAMES.indexOf(name) === -1) name = "interventions";
+    if (TAB_NAMES.indexOf(name) === -1) name = "accueil";
     tabs.forEach(function (x) { x.classList.toggle("active", x.dataset.tab === name); });
     TAB_NAMES.forEach(function (n) {
       document.getElementById("tab-" + n).hidden = n !== name;
@@ -177,8 +177,9 @@
     });
   }
   // Construit le menu bas selon le profil (chaque icône ouvre sa page)
+  var BN_LOGO = '<img src="assets/logo-cta-transparent.png" alt="" class="bn-logo">';
   function buildBottomNav() {
-    var items = [["interventions", "🛠️", "Interv."]];
+    var items = [["accueil", BN_LOGO, "Accueil"], ["interventions", "🛠️", "Interv."]];
     if (clientType !== "distributeur") items.push(["documents", "📄", "Devis"]);
     items.push(["grille", "💶", "Tarifs"]);
     if (clientType === "distributeur") items.push(["clients", "🏁", "Clients"]);
@@ -199,7 +200,7 @@
     ctaOn("bn-profile", "click", function () {
       document.getElementById("profile-btn").click();
     });
-    syncBottomNav(window.location.hash.replace("#", "") || "interventions");
+    syncBottomNav(window.location.hash.replace("#", "") || "accueil");
   }
   buildBottomNav();
 
