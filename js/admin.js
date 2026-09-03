@@ -653,17 +653,20 @@
   }
 
   function refreshStats() {
-    var toTreat = quotes.filter(function (q) { return q.status === "new"; }).length +
-      iReqs.filter(function (r) { return r.status === "nouvelle"; }).length;
+    // Chaque pastille compte ce qu'il y a à traiter dans SA page :
+    // Contacts = demandes de contact, Interv. = demandes d'intervention à
+    // planifier, Prêt = demandes de prêt / location, Messages = tickets ouverts.
+    var newQuotes = quotes.filter(function (q) { return q.status === "new"; }).length;
+    var ireqNew = iReqs.filter(function (r) { return r.status === "nouvelle"; }).length;
     var openTickets = tickets.filter(function (t) { return t.status === "ouvert" || t.status === "en_cours"; }).length;
     var upcoming = interventions.filter(function (i) { return i.status === "planifiee" || i.status === "en_cours"; }).length;
     var eqrNew = eqReqs.filter(function (r) { return r.status === "nouvelle"; }).length;
-    document.getElementById("stat-quotes").textContent = toTreat;
+    document.getElementById("stat-quotes").textContent = newQuotes + ireqNew;
     document.getElementById("stat-tickets").textContent = openTickets;
     document.getElementById("stat-interv").textContent = upcoming;
-    setNavBadge("demandes", toTreat);
+    setNavBadge("demandes", newQuotes);
+    setNavBadge("interventions", ireqNew);
     setNavBadge("messages", openTickets);
-    setNavBadge("interventions", upcoming);
     setNavBadge("materiel", eqrNew);
   }
 
