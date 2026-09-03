@@ -234,3 +234,18 @@ input::placeholder, textarea::placeholder { color: #5f6d84; }
 #clients-list [data-client-row] .input,
 #clients-list [data-client-row] select { width: 100%; min-width: 0; box-sizing: border-box; }
 #clients-list [data-client-row] > div { min-width: 0; }
+
+/* Menu bas = navigation principale sur téléphone : les onglets du haut
+   restent réservés à l'ordinateur */
+@media (max-width: 700px) {
+  .with-bottom-nav .tabs-row { display: none !important; }
+  .bottom-nav { overflow-x: auto; justify-content: flex-start; scrollbar-width: none; }
+  .bottom-nav::-webkit-scrollbar { display: none; }
+  .bn-item { flex: 1 0 auto; }
+}
+
+/* Notes de bas de section : centrées et bornées sur grand écran */
+.note-bloc { max-width: 860px; margin-left: auto !important; margin-right: auto !important; }
+@media (min-width: 701px) {
+  p.note-bloc { text-align: center; }
+}

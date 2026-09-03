@@ -121,8 +121,8 @@
         <div style="padding:14px 24px;background:rgba(47,123,255,.08);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8b98ae;">Mes demandes d'intervention</div>
         <div id="myreq-list"></div>
       </div>
-      <p style="margin:14px 2px 0;font-size:12.5px;color:#5f6d84;line-height:1.6;text-align:left;">Besoin de déplacer une intervention ? Ouvrez un ticket dans la messagerie ou appelez-nous. Des rappels vous sont envoyés par e-mail une semaine, 72 h et 24 h avant chaque intervention, puis le jour J.</p>
-      <div style="display:flex;gap:10px;align-items:flex-start;margin:12px 0 0;padding:12px 14px;border-radius:12px;background:rgba(255,190,80,.07);border:1px solid rgba(255,190,80,.28);">
+      <p class="note-bloc" style="margin:14px 2px 0;font-size:12.5px;color:#5f6d84;line-height:1.6;text-align:left;">Besoin de déplacer une intervention ? Ouvrez un ticket dans la messagerie ou appelez-nous. Des rappels vous sont envoyés par e-mail une semaine, 72 h et 24 h avant chaque intervention, puis le jour J.</p>
+      <div class="note-bloc" style="display:flex;gap:10px;align-items:flex-start;margin:12px 0 0;padding:12px 14px;border-radius:12px;background:rgba(255,190,80,.07);border:1px solid rgba(255,190,80,.28);">
         <span style="flex-shrink:0;font-size:15px;line-height:1.4;">⚠️</span>
         <span style="font-size:12.5px;line-height:1.6;color:#c9b28a;text-align:left;">Tout rendez-vous non décommandé au minimum 24 h à l'avance (sauf urgence ou accord direct avec votre prestataire) est considéré comme réalisé et facturé.</span>
       </div>
@@ -235,7 +235,19 @@
       </div>
 
       <form id="ticket-form" hidden class="panel-card" style="display:flex;flex-direction:column;gap:12px;padding:24px;margin-bottom:20px;">
-        <input id="t-subject" class="input" maxlength="200" placeholder="Sujet (ex. : mise à jour impossible sur MS909)" required>
+        <select id="t-subject-sel" class="input">
+          <option value="">Choisissez le sujet du ticket *</option>
+          <option>La valise ne s'allume pas</option>
+          <option>Problème de mise à jour</option>
+          <option>Problème de connexion VCI / bluetooth</option>
+          <option>Problème station ATF</option>
+          <option>Calibration ADAS</option>
+          <option>Question tarifaire</option>
+          <option>Déplacer ou annuler un rendez-vous</option>
+          <option>Question sur une facture</option>
+          <option value="__autre">✏️ Autre sujet (saisie libre)…</option>
+        </select>
+        <input id="t-subject" class="input" maxlength="200" placeholder="Précisez votre sujet *" hidden>
         <textarea id="t-body" class="input" rows="4" maxlength="5000" placeholder="Décrivez le problème : matériel, message d'erreur, contexte…" required style="resize:vertical;"></textarea>
         <div style="display:flex;gap:12px;justify-content:flex-end;">
           <button type="button" id="ticket-cancel" class="btn-ghost" style="padding:11px 22px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:13.5px;cursor:pointer;">Annuler</button>
@@ -274,13 +286,7 @@
 </div>
 
 <!-- Menu bas façon application (téléphone) -->
-<nav id="bottom-nav" class="bottom-nav">
-  <button type="button" class="bn-item active" data-bn-tab="interventions"><span class="bn-ico">🛠️</span><span>Interv.</span></button>
-  <button type="button" class="bn-item" data-bn-tab="grille"><span class="bn-ico">💶</span><span>Tarifs</span></button>
-  <button type="button" class="bn-item" data-bn-tab="materiel"><span class="bn-ico">🧰</span><span>Matériel</span></button>
-  <button type="button" class="bn-item" data-bn-tab="messagerie"><span class="bn-ico">💬</span><span>Messages</span></button>
-  <button type="button" class="bn-item" id="bn-profile"><span class="bn-ico">⚙️</span><span>Profil</span></button>
-</nav>
+<nav id="bottom-nav" class="bottom-nav"></nav>
 
 <!-- Demande d'intervention (distributeurs) -->
 <div id="ireq-modal" hidden style="position:fixed;inset:0;z-index:98;background:rgba(4,6,10,.86);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;">
