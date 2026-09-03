@@ -446,8 +446,17 @@
       </div>
       <form id="quote-form" data-reveal class="quote-card" style="display:flex;flex-direction:column;gap:16px;padding:36px;border-radius:20px;background:linear-gradient(160deg,#0d1119,#0a0d13);border:1px solid rgba(120,150,200,.16);">
         <div class="form-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-          <input id="f-nom" placeholder="Nom / Société" class="input" autocomplete="organization">
-          <input id="f-email" placeholder="E-mail ou téléphone" class="input" autocomplete="email">
+          <input id="f-firstname" placeholder="Prénom *" class="input" autocomplete="given-name">
+          <input id="f-lastname" placeholder="Nom *" class="input" autocomplete="family-name">
+        </div>
+        <div class="form-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <input id="f-nom" placeholder="Société / Garage *" class="input" autocomplete="organization">
+          <input id="f-phone" type="tel" placeholder="Téléphone *" class="input" autocomplete="tel">
+        </div>
+        <input id="f-email" type="email" placeholder="E-mail *" class="input" autocomplete="email">
+        <div class="form-2col" style="display:grid;grid-template-columns:2fr 1fr;gap:16px;">
+          <input id="f-address" placeholder="Adresse (rue, ville)" class="input" autocomplete="street-address">
+          <input id="f-zip" placeholder="Code postal" class="input" inputmode="numeric" autocomplete="postal-code">
         </div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.12em;color:#5f6d84;text-transform:uppercase;">Vous êtes :</span>

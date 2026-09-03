@@ -113,10 +113,9 @@
   }).catch(function () { showError("Impossible de vérifier vos droits : reconnectez-vous."); });
 
   /* ---------- Données ---------- */
-  var clients = [], tickets = [], autoReplies = [];
+  var clients = [], tickets = [];
   var currentTicket = null;
   var showArchived = false;
-  var editingReply = null;
 
   function clientName(id) {
     var c = clients.find(function (x) { return x.id === id; });
@@ -126,15 +125,14 @@
   function loadAll() {
     Promise.all([
       api("cta_partners?select=id,email,company_name&order=created_at.asc"),
-      api("cta_tickets?select=*,cta_ticket_messages(*)&order=updated_at.desc"),
-      api("cta_auto_replies?select=*&order=usage_count.desc,created_at.desc")
+      api("cta_tickets?select=*,cta_ticket_messages(*)&order=updated_at.desc")
     ]).then(function (res) {
-      clients = res[0]; tickets = res[1]; autoReplies = res[2];
+      clients = res[0]; tickets = res[1];
       if (!currentTicket) {
         var pool = tickets.filter(function (t) { return !t.archived; });
         if (pool.length) currentTicket = pool[0].id;
       }
-      renderOpenCount(); renderTicketList(); renderThread(); renderAutoReplies();
+      renderOpenCount(); renderTicketList(); renderThread();
     }).catch(function () {
       showError("Chargement impossible : vérifiez votre connexion ou reconnectez-vous.");
     });
@@ -307,104 +305,15 @@
     for (var i = idx - 1; i >= 0; i--) {
       if (msgs[i].author === "partner") { question = msgs[i]; break; }
     }
-    editingReply = null;
-    document.getElementById("ar-mode").textContent = "🧠 Apprentissage depuis le ticket « " + ticket.subject + " »";
-    document.getElementById("ar-title").value = ticket.subject || "";
-    document.getElementById("ar-keywords").value = suggestKeywords(question ? question.body : ticket.subject).join(", ");
-    document.getElementById("ar-reply").value = reply.body;
-    document.getElementById("ar-cancel").hidden = false;
-    document.getElementById("ar-form").scrollIntoView({ behavior: "smooth", block: "center" });
-    document.getElementById("ar-keywords").focus();
+    // Brouillon déposé pour la page dédiée des réponses automatiques
+    try {
+      localStorage.setItem("cta_ar_draft", JSON.stringify({
+        title: ticket.subject || "",
+        keywords: suggestKeywords(question ? question.body : ticket.subject).join(", "),
+        reply: reply.body
+      }));
+    } catch (e) { /* ignore */ }
+    window.location.href = "reponses-auto.html";
   }
 
-  /* ---------- Réponses automatiques ---------- */
-  function renderAutoReplies() {
-    var host = document.getElementById("ar-list");
-    if (!autoReplies.length) {
-      host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Aucune réponse automatique : enregistrez la première ci-dessus, ou apprenez-en une depuis un ticket (bouton 🧠).</p>';
-      return;
-    }
-    host.innerHTML = autoReplies.map(function (r) {
-      return '<div class="list-row" data-ar-row="' + r.id + '" style="align-items:flex-start;flex-direction:column;gap:8px;">' +
-        '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;">' +
-        '<span style="font-weight:800;font-size:14.5px;">' + esc(r.title) + "</span>" +
-        '<span class="badge ' + (r.enabled ? "badge-green" : "badge-grey") + '">' + (r.enabled ? "Active" : "En pause") + "</span>" +
-        '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#7fadff;">utilisée ' + (r.usage_count || 0) + " fois</span>" +
-        '<span style="flex:1;"></span>' +
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-        '<button ' + GHOST_BTN + ' data-ar-edit="' + r.id + '">Modifier</button>' +
-        '<button ' + GHOST_BTN + ' data-ar-toggle="' + r.id + '">' + (r.enabled ? "Mettre en pause" : "Réactiver") + "</button>" +
-        '<button ' + DANGER_BTN + ' data-ar-del="' + r.id + '">✕</button>' +
-        "</div></div>" +
-        '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
-        (r.keywords || []).map(function (k) {
-          return '<span style="padding:3px 10px;border-radius:999px;border:1px solid rgba(120,150,200,.28);font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#9fb6d8;">' + esc(k) + "</span>";
-        }).join("") + "</div>" +
-        '<div style="font-size:13px;color:#93a0b5;line-height:1.55;white-space:pre-line;">' + esc(r.reply) + "</div>" +
-        "</div>";
-    }).join("");
-    host.querySelectorAll("[data-ar-edit]").forEach(function (b) {
-      b.addEventListener("click", function () {
-        var r = autoReplies.find(function (x) { return x.id === b.dataset.arEdit; });
-        if (!r) return;
-        editingReply = r.id;
-        document.getElementById("ar-mode").textContent = "Modification : " + r.title;
-        document.getElementById("ar-title").value = r.title;
-        document.getElementById("ar-keywords").value = (r.keywords || []).join(", ");
-        document.getElementById("ar-reply").value = r.reply;
-        document.getElementById("ar-cancel").hidden = false;
-        document.getElementById("ar-form").scrollIntoView({ behavior: "smooth", block: "center" });
-      });
-    });
-    host.querySelectorAll("[data-ar-toggle]").forEach(function (b) {
-      b.addEventListener("click", function () {
-        var r = autoReplies.find(function (x) { return x.id === b.dataset.arToggle; });
-        if (!r) return;
-        api("cta_auto_replies?id=eq." + r.id, { method: "PATCH", body: { enabled: !r.enabled } })
-          .then(function () { r.enabled = !r.enabled; renderAutoReplies(); })
-          .catch(function () { showError("Mise à jour impossible."); });
-      });
-    });
-    host.querySelectorAll("[data-ar-del]").forEach(function (b) {
-      b.addEventListener("click", function () {
-        if (!window.confirm("Supprimer cette réponse automatique ?")) return;
-        api("cta_auto_replies?id=eq." + b.dataset.arDel, { method: "DELETE" })
-          .then(function () {
-            autoReplies = autoReplies.filter(function (x) { return x.id !== b.dataset.arDel; });
-            renderAutoReplies();
-          }).catch(function () { showError("Suppression impossible."); });
-      });
-    });
-  }
-
-  function resetArForm() {
-    editingReply = null;
-    document.getElementById("ar-form").reset();
-    document.getElementById("ar-mode").textContent = "Nouvelle réponse automatique";
-    document.getElementById("ar-cancel").hidden = true;
-  }
-  document.getElementById("ar-cancel").addEventListener("click", resetArForm);
-
-  document.getElementById("ar-form").addEventListener("submit", function (ev) {
-    ev.preventDefault();
-    var keywords = document.getElementById("ar-keywords").value
-      .split(",")
-      .map(function (k) { return k.trim(); })
-      .filter(Boolean);
-    var body = {
-      title: document.getElementById("ar-title").value.trim(),
-      keywords: keywords,
-      reply: document.getElementById("ar-reply").value.trim()
-    };
-    if (!body.title || !body.reply || !keywords.length) return;
-    var req = editingReply
-      ? api("cta_auto_replies?id=eq." + editingReply, { method: "PATCH", body: body })
-      : api("cta_auto_replies", { method: "POST", body: body });
-    req.then(function () {
-      resetArForm();
-      return api("cta_auto_replies?select=*&order=usage_count.desc,created_at.desc");
-    })
-      .then(function (rows) { autoReplies = rows; renderAutoReplies(); })
-      .catch(function () { showError("Enregistrement impossible."); });
-  });
 })();

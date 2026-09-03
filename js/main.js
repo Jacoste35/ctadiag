@@ -257,7 +257,10 @@
   function mailtoFallback(payload) {
     var body =
       "Société : " + payload.name +
-      "\nContact : " + payload.contact +
+      "\nContact : " + (payload.first_name + " " + payload.last_name).trim() +
+      "\nTéléphone : " + payload.phone +
+      "\nE-mail : " + payload.contact +
+      "\nAdresse : " + [payload.address, payload.postal_code].filter(Boolean).join(", ") +
       "\nProfil : " + (payload.client_kind === "distributeur" ? "Distributeur" : payload.client_kind === "garage" ? "Garage / atelier" : "non précisé") +
       "\nPrestations : " + payload.services.join(", ") +
       "\nRendez-vous souhaité : " + (payload.rdv_day ? fmtDay(payload.rdv_day) + (payload.rdv_slot ? " à " + payload.rdv_slot : "") : "aucun créneau sélectionné") +
@@ -273,7 +276,12 @@
       ev.preventDefault();
       var payload = {
         name: document.getElementById("f-nom").value.trim(),
+        first_name: document.getElementById("f-firstname").value.trim(),
+        last_name: document.getElementById("f-lastname").value.trim(),
+        phone: document.getElementById("f-phone").value.trim(),
         contact: document.getElementById("f-email").value.trim(),
+        address: document.getElementById("f-address").value.trim(),
+        postal_code: document.getElementById("f-zip").value.trim(),
         services: PRESTAS.filter(function (l) { return state.picked[l]; }),
         rdv_day: state.rdvDay,
         rdv_slot: state.rdvSlot,
@@ -282,8 +290,16 @@
         website: document.getElementById("f-website").value,
         client_kind: state.kind
       };
-      if (!payload.name || !payload.contact) {
-        setStatus("Merci d'indiquer votre nom / société et un moyen de contact.", true);
+      if (!payload.first_name || !payload.last_name) {
+        setStatus("Merci d'indiquer votre prénom et votre nom.", true);
+        return;
+      }
+      if (!payload.name) {
+        setStatus("Merci d'indiquer le nom de votre société ou de votre garage.", true);
+        return;
+      }
+      if (!payload.phone || !payload.contact) {
+        setStatus("Merci d'indiquer votre numéro de téléphone et votre e-mail.", true);
         return;
       }
       if (!payload.client_kind) {

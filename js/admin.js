@@ -205,6 +205,8 @@
   /* ---------- Données ---------- */
   var clients = [], quotes = [], interventions = [], grid = [], tickets = [], blockedDates = [], equipment = [], endClients = [], iReqs = [], products = [];
   var catFilter = "";
+  var typeFilter = "";   // "" | "direct" | "distributeur"
+  var clientFilter = ""; // "" ou id d'un client
   var pendingRequestId = null;
   var showArchivedIv = false;
 
@@ -421,7 +423,7 @@
       renderQuotes(); renderClients(); renderClientSelects();
       renderInterventions(); renderGrid(); renderBlocked();
       renderEquipment(); renderIntervFormOptions(); renderProductsAdmin();
-      renderIReqs(); renderCatFilter(); renderEndClientsAdmin();
+      renderIReqs(); renderClientFilter(); renderCatFilter(); renderEndClientsAdmin();
     }).catch(function () {
       showError("Chargement impossible : vérifiez votre connexion ou reconnectez-vous.");
     });
@@ -436,7 +438,12 @@
       '<div style="flex:1;min-width:260px;">' +
       '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><span style="font-weight:800;font-size:15px;">' + esc(q.name) + "</span>" + badge(q.status) +
       (!q.client_kind ? ' <span class="badge badge-grey">type non précisé</span>' : "") + "</div>" +
-      '<div style="margin-top:4px;font-size:13px;color:#7fadff;">' + esc(q.contact) + "</div>" +
+      '<div style="margin-top:4px;font-size:13px;color:#7fadff;">' +
+      [[q.first_name, q.last_name].filter(Boolean).join(" ") ? "👤 " + [q.first_name, q.last_name].filter(Boolean).join(" ") : "",
+       q.phone ? "📞 " + q.phone : "",
+       "✉️ " + q.contact,
+       [q.address, q.postal_code].filter(Boolean).length ? "📍 " + [q.address, q.postal_code].filter(Boolean).join(", ") : ""
+      ].filter(Boolean).map(esc).join(" · ") + "</div>" +
       (services ? '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">' + services + "</div>" : "") +
       (q.rdv_day ? '<div style="margin-top:8px;font-size:13px;color:#c9d4e6;">📅 RDV souhaité : <strong>' + esc(fmtDate(q.rdv_day)) + (q.rdv_slot ? " à " + esc(q.rdv_slot) : "") + "</strong></div>" : "") +
       (q.message ? '<div style="margin-top:8px;font-size:13px;color:#93a0b5;line-height:1.55;">' + esc(q.message).replace(/\n/g, "<br>") + "</div>" : "") +
@@ -489,6 +496,9 @@
     clientForm.hidden = false;
     document.getElementById("c-email").value = /\S+@\S+\.\S+/.test(q.contact) ? q.contact : "";
     document.getElementById("c-company").value = q.name || "";
+    document.getElementById("c-contact").value = [q.first_name, q.last_name].filter(Boolean).join(" ");
+    document.getElementById("c-phone").value = q.phone || "";
+    document.getElementById("c-address").value = [q.address, q.postal_code].filter(Boolean).join(", ");
     document.getElementById("c-type").value = q.client_kind === "distributeur" ? "distributeur" : "direct";
     clientForm.scrollIntoView({ behavior: "smooth", block: "center" });
     document.getElementById("c-email").focus();
@@ -598,6 +608,51 @@
   });
 
   /* ---------- Interventions ---------- */
+  function typeOfPartner(id) {
+    var c = clients.find(function (x) { return x.id === id; });
+    return c && c.client_type === "distributeur" ? "distributeur" : "direct";
+  }
+  function renderClientFilter() {
+    var host = document.getElementById("client-filter");
+    if (!host) return;
+    var countBy = function (t) {
+      return interventions.filter(function (r) { return typeOfPartner(r.partner_id) === t; }).length;
+    };
+    var chips = [
+      ["", "👥 Tous clients (" + interventions.length + ")"],
+      ["direct", "🔧 Clients directs (" + countBy("direct") + ")"],
+      ["distributeur", "📦 Distributeurs (" + countBy("distributeur") + ")"]
+    ];
+    var pool = clients
+      .filter(function (c) { return c.role !== "admin" && (!typeFilter || (c.client_type === "distributeur" ? "distributeur" : "direct") === typeFilter); })
+      .sort(function (a, b) { return String(a.company_name || a.email).localeCompare(String(b.company_name || b.email), "fr"); });
+    host.innerHTML = chips.map(function (c) {
+      var active = typeFilter === c[0];
+      return '<button type="button" data-tf="' + c[0] + '" style="padding:7px 14px;border-radius:999px;font-family:\'IBM Plex Mono\',monospace;font-size:11.5px;cursor:pointer;white-space:nowrap;' +
+        (active
+          ? "border:1px solid transparent;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;"
+          : "border:1px solid rgba(120,150,200,.28);background:transparent;color:#9fb6d8;") + '">' +
+        esc(c[1]) + "</button>";
+    }).join("") +
+      '<select id="cf-client" class="input" style="padding:8px 12px;width:auto;max-width:230px;font-size:12.5px;">' +
+      '<option value="">Un client en particulier…</option>' +
+      pool.map(function (c) {
+        return '<option value="' + c.id + '"' + (clientFilter === c.id ? " selected" : "") + ">" +
+          (c.client_type === "distributeur" ? "📦 " : "🔧 ") + esc(c.company_name || c.email) + "</option>";
+      }).join("") + "</select>";
+    host.querySelectorAll("[data-tf]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        typeFilter = b.dataset.tf;
+        var c = clients.find(function (x) { return x.id === clientFilter; });
+        if (typeFilter && c && (c.client_type === "distributeur" ? "distributeur" : "direct") !== typeFilter) clientFilter = "";
+        renderClientFilter(); renderCatFilter(); renderInterventions();
+      });
+    });
+    host.querySelector("#cf-client").addEventListener("change", function () {
+      clientFilter = this.value;
+      renderInterventions();
+    });
+  }
   function renderCatFilter() {
     var host = document.getElementById("cat-filter");
     if (!host) return;
@@ -628,6 +683,8 @@
     var rows = interventions
       .filter(function (r) { return showArchivedIv ? r.archived : !r.archived; })
       .filter(function (r) { return !catFilter || (r.category || "autre") === catFilter; })
+      .filter(function (r) { return !typeFilter || typeOfPartner(r.partner_id) === typeFilter; })
+      .filter(function (r) { return !clientFilter || r.partner_id === clientFilter; })
       .slice()
       .sort(function (a, b) { return ((b.date || "") + (b.time_slot || "")) < ((a.date || "") + (a.time_slot || "")) ? -1 : 1; });
     var archivedCount = interventions.filter(function (r) { return r.archived; }).length;
@@ -636,9 +693,10 @@
         (showArchivedIv ? "← Retour aux interventions" : "🗄️ Voir les archives (" + archivedCount + ")") + "</button></div>"
       : "";
     if (!rows.length) {
+      var filtered = catFilter || typeFilter || clientFilter;
       host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">' +
-        (showArchivedIv ? "Aucune intervention archivée" + (catFilter ? " dans cette catégorie" : "") + "." :
-         catFilter ? "Aucune intervention dans cette catégorie." : "Aucune intervention.") + "</p>" + toggle;
+        (showArchivedIv ? "Aucune intervention archivée" + (filtered ? " avec ces filtres" : "") + "." :
+         filtered ? "Aucune intervention avec ces filtres." : "Aucune intervention.") + "</p>" + toggle;
       bindAiToggle(host);
       return;
     }
@@ -803,7 +861,7 @@
               renderIReqs(); refreshStats();
             }).catch(function () { /* la demande restera à traiter */ });
         }
-        refreshStats(); renderToday(); renderWeek(); renderCA(); renderInterventions(); renderCatFilter(); renderEndClientsAdmin();
+        refreshStats(); renderToday(); renderWeek(); renderCA(); renderInterventions(); renderClientFilter(); renderCatFilter(); renderEndClientsAdmin();
       })
       .catch(function () { showError("Création impossible."); });
   });

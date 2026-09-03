@@ -41,6 +41,11 @@ Deno.serve(async (req) => {
 
   const name = String(body.name ?? "").trim().slice(0, 200);
   const contact = String(body.contact ?? "").trim().slice(0, 200);
+  const firstName = String(body.first_name ?? "").trim().slice(0, 100);
+  const lastName = String(body.last_name ?? "").trim().slice(0, 100);
+  const phone = String(body.phone ?? "").trim().slice(0, 40);
+  const address = String(body.address ?? "").trim().slice(0, 300);
+  const postalCode = String(body.postal_code ?? "").trim().slice(0, 12);
   const message = String(body.message ?? "").trim().slice(0, 5000);
   const consent = body.consent === true;
   const services = Array.isArray(body.services)
@@ -74,6 +79,11 @@ Deno.serve(async (req) => {
   const { error } = await supabase.from("quote_requests").insert({
     name,
     contact,
+    first_name: firstName || null,
+    last_name: lastName || null,
+    phone: phone || null,
+    address: address || null,
+    postal_code: postalCode || null,
     services,
     rdv_day: rdvDay,
     rdv_slot: rdvSlot,
@@ -103,7 +113,9 @@ Deno.serve(async (req) => {
           to: [notifyTo],
           subject: `Nouvelle demande de devis · ${name}`,
           text:
-            `Société : ${name}\nContact : ${contact}\n` +
+            `Société : ${name}\nContact : ${[firstName, lastName].filter(Boolean).join(" ") || "?"}\n` +
+            `Téléphone : ${phone || "?"}\nE-mail : ${contact}\n` +
+            `Adresse : ${[address, postalCode].filter(Boolean).join(", ") || "non précisée"}\n` +
             `Profil : ${clientKind === "distributeur" ? "Distributeur" : clientKind === "garage" ? "Garage" : "non précisé"}\n` +
             `Prestations : ${services.join(", ") || "non précisées"}\n` +
             `Rendez-vous souhaité : ${rdvDay ? `${rdvDay}${rdvSlot ? ` à ${rdvSlot}` : ""}` : "aucun"}\n\n${message}`,

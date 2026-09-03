@@ -30,7 +30,8 @@
       <span class="app-label" style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.16em;color:#7fadff;text-transform:uppercase;">Messagerie</span>
     </a>
     <div style="display:flex;align-items:center;gap:12px;">
-      <a href="admin.html" class="btn-ghost" style="padding:9px 18px;border-radius:999px;border:1px solid rgba(56,212,122,.4);color:#38d47a;font-weight:700;font-size:13px;">← Back-office</a>
+      <a href="reponses-auto.html" class="btn-ghost" style="padding:9px 18px;border-radius:999px;border:1px solid rgba(77,141,255,.4);color:#7fadff;font-weight:700;font-size:13px;">🤖 Réponses automatiques</a>
+      <a href="admin.html" class="btn-ghost hide-mobile" style="padding:9px 18px;border-radius:999px;border:1px solid rgba(56,212,122,.4);color:#38d47a;font-weight:700;font-size:13px;">← Back-office</a>
       <button id="logout" class="btn-ghost" style="padding:9px 18px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:13px;cursor:pointer;">Se déconnecter</button>
     </div>
   </header>
@@ -76,26 +77,7 @@
       </div>
     </div>
 
-    <!-- Réponses automatiques -->
-    <div style="margin-bottom:16px;">
-      <h2 style="margin:0 0 8px;font-size:19px;font-weight:900;">🤖 Réponses automatiques</h2>
-      <p style="margin:0;color:#9aa6ba;font-size:14px;line-height:1.6;">Les cas qui reviennent souvent reçoivent une réponse instantanée et professionnelle : dès qu'un message client contient l'un des mots-clés, la réponse type part immédiatement dans le ticket, avec votre tutoriel de dépannage.<br><span style="color:#7fadff;">Pour apprendre au système : cliquez sur « 🧠 Apprendre » sous l'une de vos réponses dans un ticket, ajustez les mots-clés, enregistrez. Le compteur d'usage montre les cas les plus fréquents.</span></p>
-    </div>
-
-    <form id="ar-form" class="panel-card" style="display:flex;flex-direction:column;gap:12px;padding:22px;margin-bottom:18px;">
-      <div id="ar-mode" style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;color:#7fadff;text-transform:uppercase;">Nouvelle réponse automatique</div>
-      <input id="ar-title" class="input" maxlength="200" placeholder="Titre du cas (ex. : la valise ne s'allume pas) *" required>
-      <input id="ar-keywords" class="input" placeholder="Mots-clés déclencheurs, séparés par des virgules (ex. : ne s'allume pas, écran noir) *" required>
-      <textarea id="ar-reply" class="input" rows="4" maxlength="5000" placeholder="Réponse envoyée automatiquement (tutoriel de dépannage…) *" required style="resize:vertical;"></textarea>
-      <div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;">
-        <button type="button" id="ar-cancel" hidden class="btn-ghost" style="padding:11px 22px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:13.5px;cursor:pointer;">Annuler</button>
-        <button type="submit" class="btn-primary" style="padding:11px 26px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;box-shadow:0 6px 20px rgba(47,123,255,.35);">Enregistrer</button>
-      </div>
-    </form>
-
-    <div class="panel-card" style="overflow:hidden;">
-      <div id="ar-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
-    </div>
+    <p style="margin:0;font-size:12.5px;color:#5f6d84;line-height:1.6;">💡 Le bouton « 🧠 Apprendre » sous l'une de vos réponses transforme le cas en réponse automatique : les réponses types se gèrent dans la page <a href="reponses-auto.html" style="color:#7fadff;font-weight:700;">🤖 Réponses automatiques</a>.</p>
   </main>
 </div>
 
