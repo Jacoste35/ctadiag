@@ -310,7 +310,7 @@
         (r.equipment ? '<div style="margin-top:3px;font-size:12.5px;color:#93a0b5;">' + esc(r.equipment) + "</div>" : "") + "</div>" +
         '<div style="padding:12px 14px;border-radius:12px;background:rgba(10,13,19,.6);border:1px solid rgba(120,150,200,.15);display:flex;flex-direction:column;gap:5px;">' +
         '<div style="font-weight:700;font-size:14px;">' + esc(c.company_name || "Client inconnu") + (c.contact_name ? ' <span style="font-weight:600;color:#8b98ae;">· ' + esc(c.contact_name) + "</span>" : "") + "</div>" +
-        (r.cta_end_clients ? '<div style="font-size:12.5px;color:#7fadff;">🏁 Client final : ' + esc(r.cta_end_clients.company_name) + "</div>" : "") +
+        (r.cta_end_clients ? '<div style="font-size:12.5px;color:#7fadff;">🚗 Client final : ' + esc(r.cta_end_clients.company_name) + "</div>" : "") +
         (c.phone ? '<div style="font-size:13px;color:#9aa6ba;">📞 ' + esc(c.phone) + "</div>" : "") +
         (addr ? '<div style="font-size:13px;color:#9aa6ba;line-height:1.45;">📍 ' + esc(addr) + "</div>" : "") +
         (r.notes ? '<div style="font-size:12.5px;color:#5f6d84;">📝 ' + esc(r.notes) + "</div>" : "") + "</div>" +
@@ -364,7 +364,7 @@
           return '<div style="display:flex;gap:12px;align-items:flex-start;padding:10px 14px;margin-bottom:6px;border-radius:12px;background:rgba(13,17,25,.7);border:1px solid rgba(120,150,200,.14);flex-wrap:wrap;">' +
             '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:13.5px;font-weight:700;color:#c9d4e6;min-width:52px;">' + esc(r.time_slot || "Journée") + "</span>" +
             '<div style="flex:1;min-width:200px;">' +
-            '<div style="font-weight:700;font-size:13.5px;">' + esc(r.type) + ' <span style="font-weight:600;color:#7fadff;">· ' + esc(c.company_name || "?") + (r.cta_end_clients ? " → 🏁 " + esc(r.cta_end_clients.company_name) : "") + "</span></div>" +
+            '<div style="font-weight:700;font-size:13.5px;">' + esc(r.type) + ' <span style="font-weight:600;color:#7fadff;">· ' + esc(c.company_name || "?") + (r.cta_end_clients ? " → 🚗 " + esc(r.cta_end_clients.company_name) : "") + "</span></div>" +
             '<div style="margin-top:2px;font-size:12px;color:#8b98ae;">' +
             [c.phone ? "📞 " + esc(c.phone) : "", addr ? "📍 " + esc(addr) : ""].filter(Boolean).join(" &nbsp; ") + "</div>" +
             (r.notes ? '<div style="margin-top:3px;font-size:12px;color:#9fb6d8;">📝 ' + esc(r.notes) + "</div>" : "") +
@@ -409,31 +409,54 @@
       .then(function (res) { noticeResult(res, "Relance envoyée ✓"); })
       .catch(function (e) { showError("Relance impossible : " + e.message); });
   }
+  // Report de rendez-vous : petit formulaire avec vrais sélecteurs date / heure
+  // (plus simple sur téléphone que les anciennes fenêtres de saisie).
+  var reschedId = null;
+  function closeResched() {
+    var m = document.getElementById("resched-modal");
+    if (m) m.hidden = true;
+    reschedId = null;
+  }
   function rescheduleIv(id) {
     var r = interventions.find(function (x) { return x.id === id; });
-    if (!r) return;
-    var nd = window.prompt("Nouvelle date du rendez-vous (AAAA-MM-JJ) :", r.date || "");
-    if (nd === null) return;
-    nd = nd.trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(nd)) { window.alert("Date invalide : utilisez le format AAAA-MM-JJ."); return; }
-    var ns = window.prompt("Nouvelle heure (HH:MM, laisser vide pour « journée ») :", r.time_slot || "");
-    if (ns === null) return;
-    ns = ns.trim();
-    if (ns && !/^\d{2}:\d{2}$/.test(ns)) { window.alert("Heure invalide : utilisez le format HH:MM."); return; }
+    var modal = document.getElementById("resched-modal");
+    if (!r || !modal) return;
+    reschedId = id;
+    document.getElementById("rs-info").textContent =
+      clientName(r.partner_id) + (r.type ? " · " + r.type : "") +
+      " · actuellement le " + fmtDate(r.date) + (r.time_slot ? " à " + r.time_slot.slice(0, 5) : "");
+    document.getElementById("rs-date").value = r.date || "";
+    document.getElementById("rs-time").value = r.time_slot ? r.time_slot.slice(0, 5) : "";
+    document.getElementById("rs-notify").checked = true;
+    modal.hidden = false;
+    document.getElementById("rs-date").focus();
+  }
+  ctaOn("rs-cancel", "click", closeResched);
+  ctaOn("resched-modal", "click", function (e) { if (e.target === this) closeResched(); });
+  ctaOn("resched-form", "submit", function (ev) {
+    ev.preventDefault();
+    var r = interventions.find(function (x) { return x.id === reschedId; });
+    if (!r) { closeResched(); return; }
+    var id = reschedId;
+    var nd = document.getElementById("rs-date").value;
+    var ns = document.getElementById("rs-time").value;
+    var notify = document.getElementById("rs-notify").checked;
+    if (!nd) return;
     var oldDate = r.date;
     api("cta_interventions?id=eq." + id, { method: "PATCH", body: { date: nd, time_slot: ns || null } })
       .then(function () {
         r.date = nd;
         r.time_slot = ns || null;
+        closeResched();
         afterIvChange();
-        if (window.confirm("Rendez-vous reporté au " + fmtDate(nd) + (ns ? " à " + ns : "") + " ✓\n\nPrévenir le client par e-mail ?")) {
+        if (notify) {
           return fn("send-notice", { intervention_id: id, kind: "report", new_date: nd, new_slot: ns || null, old_date: oldDate })
-            .then(function (res) { noticeResult(res, "Client prévenu du report ✓"); })
-            .catch(function (e) { showError("E-mail de report impossible : " + e.message); });
+            .then(function (res) { noticeResult(res, "Rendez-vous reporté ✓ Client prévenu par e-mail."); })
+            .catch(function (e) { showError("Rendez-vous reporté, mais e-mail impossible : " + e.message); });
         }
       })
       .catch(function () { showError("Report impossible."); });
-  }
+  });
   function cancelIv(id) {
     var r = interventions.find(function (x) { return x.id === id; });
     if (!r) return;
@@ -487,7 +510,7 @@
       return '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;padding:9px 14px;margin-bottom:6px;border-radius:12px;background:rgba(13,17,25,.7);border:1px solid rgba(120,150,200,.14);font-size:13.5px;line-height:1.5;">' +
         '<span style="font-family:\'IBM Plex Mono\',monospace;font-weight:700;color:#7fadff;">' + esc(longDate(r.date)) + (r.time_slot ? " · " + esc(r.time_slot) : "") + "</span>" + sep +
         '<span style="font-weight:700;color:#dfe6f2;">' + esc(r.type) + "</span>" + sep +
-        '<span style="color:#c9d4e6;">' + esc(c.company_name || "?") + (r.cta_end_clients ? " 🏁 " + esc(r.cta_end_clients.company_name) : "") + "</span>" +
+        '<span style="color:#c9d4e6;">' + esc(c.company_name || "?") + (r.cta_end_clients ? " 🚗 " + esc(r.cta_end_clients.company_name) : "") + "</span>" +
         (secteur ? sep + '<span style="color:#38d47a;">📍 ' + esc(secteur) + "</span>" : "") +
         '<span style="flex:1;"></span><span style="display:flex;gap:6px;flex-wrap:wrap;">' + rdvButtons(r.id) + "</span>" +
         "</div>";
@@ -952,7 +975,7 @@
       html += '<div class="list-row" data-iv-row="' + r.id + '" style="border-top:none;">' +
         '<div style="min-width:120px;font-family:\'IBM Plex Mono\',monospace;font-size:13px;color:#c9d4e6;">' + esc(fmtDate(r.date)) + (r.time_slot ? " · " + esc(r.time_slot) : "") + "</div>" +
         '<div style="flex:1;min-width:220px;">' +
-        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span style="font-weight:800;font-size:14.5px;">' + esc(r.type) + '</span>' + catChip(r.category) + ' <span style="font-weight:600;font-size:13.5px;color:#7fadff;">· ' + esc(clientName(r.partner_id)) + (endClient ? " → 🏁 " + esc(endClient) : "") + "</span></div>" +
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span style="font-weight:800;font-size:14.5px;">' + esc(r.type) + '</span>' + catChip(r.category) + ' <span style="font-weight:600;font-size:13.5px;color:#7fadff;">· ' + esc(clientName(r.partner_id)) + (endClient ? " → 🚗 " + esc(endClient) : "") + "</span></div>" +
         '<div style="margin-top:3px;font-size:13px;color:#93a0b5;">' + esc(r.equipment || "") + (r.location ? " · " + esc(r.location) : "") + (r.notes ? " · " + esc(r.notes) : "") + "</div></div>" +
         '<span style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;">' +
         '<input class="input iv-amount" type="number" step="0.01" min="0" value="' + (r.amount_ht == null ? "" : r.amount_ht) + '" placeholder="Presta €" title="Prix de la prestation HT" style="width:86px;padding:8px 10px;font-size:13px;text-align:right;">' +
@@ -1176,7 +1199,7 @@
     var ecs = endClients.filter(function (e) { return e.distributor_id === partnerId; });
     sel.hidden = !ecs.length;
     sel.innerHTML = '<option value="">Client final (optionnel)</option>' +
-      ecs.map(function (e) { return '<option value="' + e.id + '">🏁 ' + esc(e.company_name) + "</option>"; }).join("");
+      ecs.map(function (e) { return '<option value="' + e.id + '">🚗 ' + esc(e.company_name) + "</option>"; }).join("");
   }
   ctaOn("iv-client", "change", function () {
     updateEndClientOptions();
@@ -1282,7 +1305,7 @@
         catChip(r.category) +
         '<div style="flex:1;min-width:220px;">' +
         '<div style="font-weight:800;font-size:14px;">' + esc(clientName(r.partner_id)) +
-        (r.cta_end_clients ? ' <span style="font-weight:600;color:#7fadff;">→ 🏁 ' + esc(r.cta_end_clients.company_name) + "</span>" : "") + "</div>" +
+        (r.cta_end_clients ? ' <span style="font-weight:600;color:#7fadff;">→ 🚗 ' + esc(r.cta_end_clients.company_name) + "</span>" : "") + "</div>" +
         '<div style="margin-top:3px;font-size:12.5px;color:#93a0b5;">' +
         [r.desired_date ? "📅 Souhaité : " + fmtDate(r.desired_date) + (r.desired_slot ? " à " + r.desired_slot : "") : "",
          r.equipment ? "🧰 " + r.equipment : "",
@@ -1393,7 +1416,7 @@
       var isOpen = openHistory === e.id;
       return '<div class="list-row" style="align-items:flex-start;flex-direction:column;gap:8px;border-top:none;">' +
         '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;">' +
-        '<span style="font-weight:800;font-size:14.5px;">🏁 ' + esc(e.company_name) + "</span>" +
+        '<span style="font-weight:800;font-size:14.5px;">🚗 ' + esc(e.company_name) + "</span>" +
         '<span style="flex:1;"></span>' +
         '<button ' + GHOST_BTN + ' data-ec-history="' + e.id + '">' + (isOpen ? "Masquer l\'historique" : "Historique (" + history.length + ")") + "</button>" +
         "</div>" +
@@ -1747,7 +1770,7 @@
         '<span class="badge ' + (r.kind === "location" ? "badge-amber" : "badge-blue") + '">' + (r.kind === "location" ? "💶 Location" : "🤝 Prêt") + "</span>" +
         '<div style="flex:1;min-width:220px;">' +
         '<div style="font-weight:800;font-size:14px;">' + esc(r.product_name) + ' <span style="font-weight:600;color:#7fadff;">· ' + esc(clientName(r.partner_id)) +
-        (endClient ? " → 🏁 " + esc(endClient) : "") + "</span></div>" +
+        (endClient ? " → 🚗 " + esc(endClient) : "") + "</span></div>" +
         whereLine +
         '<div style="margin-top:3px;font-size:12.5px;color:#93a0b5;">' +
         [r.duration ? "⏱️ " + r.duration : "", r.start_date ? "📅 à partir du " + fmtDate(r.start_date) : ""].filter(Boolean).map(esc).join(" · ") + "</div>" +

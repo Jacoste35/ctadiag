@@ -203,7 +203,7 @@
     var items = [["accueil", BN_LOGO, "Accueil"], ["interventions", "🛠️", "Interv."]];
     if (clientType !== "distributeur") items.push(["documents", "📄", "Devis"]);
     items.push(["grille", "💶", "Tarifs"]);
-    if (clientType === "distributeur") items.push(["clients", "🏁", "Clients"]);
+    if (clientType === "distributeur") items.push(["clients", "👥", "Clients"]);
     items.push(["materiel", "🧰", "Prêt"]);
     if (me && me.remote_setup_enabled) items.push(["mes", "🛰️", "Mise en serv."]);
     items.push(["messagerie", "💬", "Messages"]);
@@ -427,7 +427,7 @@
       '<span style="font-family:\'IBM Plex Mono\',monospace;font-weight:700;color:#7fadff;">' +
       (withDate ? esc(longDate(r.date)) + (r.time_slot ? " · " + esc(r.time_slot) : "") : esc(r.time_slot || "Journée")) + "</span>" + sep +
       '<span style="font-weight:700;color:#dfe6f2;">' + esc(r.type) + "</span>" + sep +
-      '<span style="color:#c9d4e6;">' + (endClient ? "🏁 " + esc(endClient) : "Chez vous") + "</span>" +
+      '<span style="color:#c9d4e6;">' + (endClient ? "🚗 " + esc(endClient) : "Chez vous") + "</span>" +
       (secteur ? sep + '<span style="color:#38d47a;">📍 ' + esc(secteur) + "</span>" : "") +
       " " + badge(r.status) +
       "</div>";
@@ -509,7 +509,7 @@
       html += '<div class="list-row" style="border-top:none;">' +
         '<div style="min-width:120px;font-family:\'IBM Plex Mono\',monospace;font-size:13px;color:#c9d4e6;">' + esc(fmtDate(r.date)) + (r.time_slot ? " · " + esc(r.time_slot) : "") + "</div>" +
         '<div style="flex:1;min-width:220px;"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span style="font-weight:800;font-size:15px;">' + esc(r.type) + "</span>" + catChip(r.category) + "</div>" +
-        (endClient ? '<div style="margin-top:3px;font-size:13px;color:#7fadff;">🏁 Chez ' + esc(endClient) + "</div>" : "") +
+        (endClient ? '<div style="margin-top:3px;font-size:13px;color:#7fadff;">🚗 Chez ' + esc(endClient) + "</div>" : "") +
         '<div style="margin-top:3px;font-size:13px;color:#93a0b5;">' + esc(r.equipment || "") + (r.location ? " · " + esc(r.location) : "") + "</div>" +
         (r.notes ? '<div style="margin-top:4px;font-size:12.5px;color:#5f6d84;">' + esc(r.notes) + "</div>" : "") + "</div>" +
         badge(r.status) +
@@ -787,7 +787,7 @@
       var inp = 'class="input" style="width:100%;min-width:0;box-sizing:border-box;padding:9px 12px;font-size:13px;"';
       return '<div data-ec-row="' + f.id + '" style="border-radius:16px;background:rgba(13,17,25,.75);border:1px solid rgba(120,150,200,.18);padding:20px;display:flex;flex-direction:column;gap:12px;min-width:0;">' +
         '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;">' +
-        '<span style="font-weight:900;font-size:15.5px;">🏁 ' + esc(f.company_name) + "</span>" +
+        '<span style="font-weight:900;font-size:15.5px;">🚗 ' + esc(f.company_name) + "</span>" +
         '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#5f6d84;">' + nb + " intervention" + (nb > 1 ? "s" : "") + " CTA</span></div>" +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
         ecField("Contact", '<input ' + inp + ' data-f="contact_name" value="' + esc(f.contact_name || "") + '">') +
@@ -1164,7 +1164,7 @@
     sel.hidden = false;
     var current = sel.value;
     sel.innerHTML = '<option value="">Pour qui ? Pour ma société</option>' +
-      fiches.map(function (f) { return '<option value="' + f.id + '">🏁 Pour mon client : ' + esc(f.company_name) + "</option>"; }).join("") +
+      fiches.map(function (f) { return '<option value="' + f.id + '">🚗 Pour mon client : ' + esc(f.company_name) + "</option>"; }).join("") +
       '<option value="__new">➕ Pour un nouveau client final…</option>';
     if (current && sel.querySelector('option[value="' + current + '"]')) sel.value = current;
   }
@@ -1200,7 +1200,7 @@
         '<span class="badge ' + (r.kind === "location" ? "badge-amber" : "badge-blue") + '">' + (r.kind === "location" ? "💶 Location" : "🤝 Prêt") + "</span>" +
         '<div style="flex:1;min-width:200px;">' +
         '<div style="font-weight:800;font-size:14.5px;">' + esc(r.product_name) +
-        (endClient ? ' <span style="font-weight:600;font-size:13px;color:#7fadff;">· 🏁 chez ' + esc(endClient) + "</span>" : "") + "</div>" +
+        (endClient ? ' <span style="font-weight:600;font-size:13px;color:#7fadff;">· 🚗 chez ' + esc(endClient) + "</span>" : "") + "</div>" +
         whereLine +
         '<div style="margin-top:3px;font-size:12.5px;color:#93a0b5;">' +
         [r.duration ? "⏱️ " + r.duration : "", r.start_date ? "📅 à partir du " + fmtDate(r.start_date) : ""].filter(Boolean).map(esc).join(" · ") + "</div>" +
