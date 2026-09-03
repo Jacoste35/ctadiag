@@ -231,6 +231,19 @@ input::placeholder, textarea::placeholder { color: #5f6d84; }
   .with-bottom-nav main.section-pad { padding-bottom: 130px !important; }
 }
 
+/* Pastille rouge de contrôle : nombre d'éléments à traiter dans un menu */
+.tabs-row .tab, .bn-item { position: relative; }
+.nav-badge {
+  position: absolute; top: -7px; right: -7px;
+  min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
+  border-radius: 999px; background: #ff4d4d; color: #fff;
+  font-family: 'Archivo', sans-serif; font-size: 10.5px; font-weight: 800; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 8px rgba(255, 77, 77, .45);
+  pointer-events: none;
+}
+.bn-item .nav-badge { top: 0; right: 4px; }
+
 /* Cartes clients du back-office : cadres alignés, rien ne dépasse */
 #clients-list [data-client-row] { min-width: 0; }
 #clients-list [data-client-row] .input,

@@ -226,14 +226,14 @@
       ["clients", "👥", "Clients"],
       ["interventions", "🛠️", "Interv."],
       ["grille", "💶", "Tarifs"],
-      ["materiel", "🧰", "Matériel"],
+      ["materiel", "🧰", "Prêt"],
       ["agenda", "📅", "Agenda"]
     ];
     var nav = document.getElementById("bottom-nav");
     nav.innerHTML = items.map(function (it) {
       return '<button type="button" class="bn-item' + (it[0] === "accueil" ? " active" : "") + '" data-bn-tab="' + it[0] + '"><span class="bn-ico">' + it[1] + "</span><span>" + it[2] + "</span></button>";
     }).join("") +
-      '<a class="bn-item" href="messagerie.html" style="text-decoration:none;"><span class="bn-ico">💬</span><span>Messages</span></a>';
+      '<a class="bn-item" id="bn-messages" href="messagerie.html" style="text-decoration:none;"><span class="bn-ico">💬</span><span>Messages</span></a>';
     nav.querySelectorAll("[data-bn-tab]").forEach(function (b) {
       b.addEventListener("click", function () {
         showTab(b.dataset.bnTab);
@@ -241,6 +241,30 @@
       });
     });
   })();
+
+  // Tuiles de l'accueil cliquables : chacune ouvre directement sa page
+  document.querySelectorAll("[data-go]").forEach(function (t) {
+    t.addEventListener("click", function () { showTab(t.dataset.go); });
+    t.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); showTab(t.dataset.go); } });
+  });
+  document.querySelectorAll("[data-href]").forEach(function (t) {
+    t.addEventListener("click", function () { window.location.href = t.dataset.href; });
+    t.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); window.location.href = t.dataset.href; } });
+  });
+  // Pastille rouge avec compteur sur les menus qui demandent un contrôle
+  function setNavBadge(tab, count) {
+    var sels = tab === "messages"
+      ? ["#bottom-nav #bn-messages", '.tabs-row a[href="messagerie.html"]']
+      : ["#bottom-nav [data-bn-tab='" + tab + "']", ".tabs-row .tab[data-tab='" + tab + "']"];
+    sels.forEach(function (sel) {
+      var el = document.querySelector(sel);
+      if (!el) return;
+      var b = el.querySelector(".nav-badge");
+      if (!count) { if (b) b.remove(); return; }
+      if (!b) { b = document.createElement("span"); b.className = "nav-badge"; el.appendChild(b); }
+      b.textContent = count > 99 ? "99+" : count;
+    });
+  }
 
   /* ---------- Données ---------- */
   var clients = [], quotes = [], interventions = [], grid = [], tickets = [], blockedDates = [], equipment = [], endClients = [], iReqs = [], products = [], eqReqs = [], setupGuides = [];
@@ -524,11 +548,18 @@
   }
 
   function refreshStats() {
-    document.getElementById("stat-quotes").textContent =
-      quotes.filter(function (q) { return q.status === "new"; }).length +
+    var toTreat = quotes.filter(function (q) { return q.status === "new"; }).length +
       iReqs.filter(function (r) { return r.status === "nouvelle"; }).length;
-    document.getElementById("stat-tickets").textContent = tickets.filter(function (t) { return t.status === "ouvert" || t.status === "en_cours"; }).length;
-    document.getElementById("stat-interv").textContent = interventions.filter(function (i) { return i.status === "planifiee" || i.status === "en_cours"; }).length;
+    var openTickets = tickets.filter(function (t) { return t.status === "ouvert" || t.status === "en_cours"; }).length;
+    var upcoming = interventions.filter(function (i) { return i.status === "planifiee" || i.status === "en_cours"; }).length;
+    var eqrNew = eqReqs.filter(function (r) { return r.status === "nouvelle"; }).length;
+    document.getElementById("stat-quotes").textContent = toTreat;
+    document.getElementById("stat-tickets").textContent = openTickets;
+    document.getElementById("stat-interv").textContent = upcoming;
+    setNavBadge("demandes", toTreat);
+    setNavBadge("messages", openTickets);
+    setNavBadge("interventions", upcoming);
+    setNavBadge("materiel", eqrNew);
   }
 
   function loadAll() {
@@ -923,8 +954,12 @@
         '<div style="flex:1;min-width:220px;">' +
         '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span style="font-weight:800;font-size:14.5px;">' + esc(r.type) + '</span>' + catChip(r.category) + ' <span style="font-weight:600;font-size:13.5px;color:#7fadff;">· ' + esc(clientName(r.partner_id)) + (endClient ? " → 🏁 " + esc(endClient) : "") + "</span></div>" +
         '<div style="margin-top:3px;font-size:13px;color:#93a0b5;">' + esc(r.equipment || "") + (r.location ? " · " + esc(r.location) : "") + (r.notes ? " · " + esc(r.notes) : "") + "</div></div>" +
+        '<span style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;">' +
         '<input class="input iv-amount" type="number" step="0.01" min="0" value="' + (r.amount_ht == null ? "" : r.amount_ht) + '" placeholder="Presta €" title="Prix de la prestation HT" style="width:86px;padding:8px 10px;font-size:13px;text-align:right;">' +
+        '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:9.5px;letter-spacing:.08em;color:#5f6d84;text-transform:uppercase;">Forfait</span></span>' +
+        '<span style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;">' +
         '<input class="input iv-travel" type="number" step="0.01" min="0" value="' + (r.travel_ht == null ? "" : r.travel_ht) + '" placeholder="Km €" title="Indemnités kilométriques HT" style="width:76px;padding:8px 10px;font-size:13px;text-align:right;border-color:rgba(56,212,122,.3);">' +
+        '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:9.5px;letter-spacing:.08em;color:#38d47a;text-transform:uppercase;">Indemnité km</span></span>' +
         statusSelect(r.status, ["planifiee", "en_cours", "terminee", "annulee"], "iv-status") +
         (isDoneIvA(r) && !r.archived
           ? '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;color:#5f6d84;" title="Réalisée : archivée automatiquement">auto</span>'
@@ -1506,13 +1541,7 @@
       byCat[cat].push(e);
     });
     order.sort(function (a, b) { return a === "Autre matériel" ? 1 : b === "Autre matériel" ? -1 : a.localeCompare(b, "fr"); });
-    // Par défaut : les gammes avec du matériel sorti (prêt / location / intervention) sont ouvertes
-    if (!Object.keys(eqOpenCats).length) {
-      order.forEach(function (cat) {
-        if (byCat[cat].some(function (e) { return e.status !== "disponible" && e.status !== "indisponible"; })) eqOpenCats[cat] = true;
-      });
-      if (!Object.keys(eqOpenCats).length && order.length) eqOpenCats[order[0]] = true;
-    }
+    // Par défaut : toutes les gammes repliées, un clic les déroule
     host.innerHTML = order.map(function (cat) {
       var open = !!eqOpenCats[cat];
       var out = byCat[cat].filter(function (e) { return e.status === "prete" || e.status === "louee"; }).length;
@@ -1593,7 +1622,7 @@
       if (!byCat[p.category]) { byCat[p.category] = []; order.push(p.category); }
       byCat[p.category].push(p);
     });
-    if (!Object.keys(adminOpenCats).length) adminOpenCats[order[0]] = true;
+    // Toutes les gammes repliées par défaut : un clic les déroule
     host.innerHTML = order.map(function (cat) {
       var open = !!adminOpenCats[cat];
       return '<button type="button" data-padm-toggle="' + esc(cat) + '" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 24px;border:none;border-top:1px solid rgba(120,150,200,.08);background:transparent;cursor:pointer;font-family:\'IBM Plex Mono\',monospace;font-size:11.5px;letter-spacing:.14em;color:#7fadff;text-transform:uppercase;text-align:left;">' +
@@ -1671,11 +1700,11 @@
       if (!byCat[cat]) { byCat[cat] = []; order.push(cat); }
       byCat[cat].push(r);
     });
-    if (!Object.keys(eqrOpenCats).length) order.forEach(function (c) { eqrOpenCats[c] = true; });
+    // Tous les groupes repliés par défaut : un clic les déroule
     document.getElementById("eqr-admin-list").innerHTML = (!visible.length
       ? '<p style="margin:0;padding:18px 24px;color:#5f6d84;font-size:13.5px;">Aucune demande avec ce filtre.</p>'
       : order.map(function (cat) {
-          var open = eqrOpenCats[cat] !== false;
+          var open = eqrOpenCats[cat] === true;
           return '<button type="button" data-eqr-toggle="' + esc(cat) + '" style="display:flex;align-items:center;gap:10px;width:100%;padding:12px 24px;border:none;border-top:1px solid rgba(120,150,200,.08);background:transparent;cursor:pointer;font-family:\'IBM Plex Mono\',monospace;font-size:11.5px;letter-spacing:.14em;color:#ffbe50;text-transform:uppercase;text-align:left;">' +
             "<span>" + (open ? "▾" : "▸") + "</span><span>" + esc(cat) + "</span>" +
             '<span style="color:#5f6d84;text-transform:none;letter-spacing:0;">(' + byCat[cat].length + ")</span></button>" +
@@ -1683,7 +1712,7 @@
         }).join(""));
     document.getElementById("eqr-admin-list").querySelectorAll("[data-eqr-toggle]").forEach(function (b) {
       b.addEventListener("click", function () {
-        eqrOpenCats[b.dataset.eqrToggle] = eqrOpenCats[b.dataset.eqrToggle] === false;
+        eqrOpenCats[b.dataset.eqrToggle] = eqrOpenCats[b.dataset.eqrToggle] !== true;
         renderEqReqsAdmin();
       });
     });
@@ -1696,9 +1725,15 @@
       // sinon coordonnées du compte demandeur)
       var whereSrc = r.cta_end_clients || clients.find(function (c) { return c.id === r.partner_id; }) || {};
       var whereAddr = [whereSrc.address, [whereSrc.postal_code, whereSrc.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
-      var whereParts = [whereAddr ? "📍 " + whereAddr : "", whereSrc.contact_name ? "👤 " + whereSrc.contact_name : "", whereSrc.phone ? "📞 " + whereSrc.phone : ""].filter(Boolean);
-      var whereLine = whereParts.length
-        ? '<div style="margin-top:3px;font-size:12.5px;color:#93a0b5;">' + whereParts.map(esc).join(" · ") + "</div>"
+      // Résumé clair du lieu : nom du garage, adresse, interlocuteur désigné
+      var whereName = whereSrc.company_name || (endClient ? null : clientName(r.partner_id));
+      var contactLine = [whereSrc.contact_name ? "👤 " + whereSrc.contact_name : "", whereSrc.phone ? "📞 " + whereSrc.phone : ""].filter(Boolean);
+      var whereLine = (whereName || whereAddr || contactLine.length)
+        ? '<div style="margin-top:6px;padding:8px 12px;border-radius:10px;background:rgba(47,123,255,.07);border:1px solid rgba(77,141,255,.18);font-size:12.5px;color:#c3cddd;line-height:1.7;">' +
+          (whereName ? '<div>🏢 <strong style="color:#dfe6f2;">' + esc(whereName) + "</strong></div>" : "") +
+          (whereAddr ? "<div>📍 " + esc(whereAddr) + "</div>" : "") +
+          (contactLine.length ? "<div>" + contactLine.map(esc).join(" · ") + "</div>" : "") +
+          "</div>"
         : "";
       var billing = "";
       if (r.kind === "location" && r.price_ht != null) {
@@ -1736,6 +1771,7 @@
         .then(function () {
           eqReqs.find(function (x) { return x.id === id; }).status = status;
           renderEqReqsAdmin();
+          refreshStats();
           if (extra) extra();
         }).catch(function () { showError("Mise à jour impossible."); });
     }
@@ -1767,7 +1803,26 @@
       });
     });
     list.querySelectorAll("[data-eqr-done]").forEach(function (b) {
-      b.addEventListener("click", function () { setEqrStatus(b.dataset.eqrDone, "terminee"); });
+      b.addEventListener("click", function () {
+        var r = eqReqs.find(function (x) { return x.id === b.dataset.eqrDone; });
+        setEqrStatus(b.dataset.eqrDone, "terminee", function () {
+          // Matériel rendu : la valise repasse automatiquement en disponible
+          if (!r) return;
+          var eq = equipment.find(function (e) {
+            return (e.status === "prete" || e.status === "louee") &&
+              e.holder_partner_id === r.partner_id &&
+              e.name.toLowerCase().indexOf(r.product_name.toLowerCase().split(" ")[0]) !== -1;
+          });
+          if (!eq) return;
+          api("cta_equipment?id=eq." + eq.id, {
+            method: "PATCH",
+            body: { status: "disponible", holder_partner_id: null, since: null }
+          }).then(function () {
+            Object.assign(eq, { status: "disponible", holder_partner_id: null, since: null });
+            renderEquipment(); renderIntervFormOptions();
+          }).catch(function () { showError("Inventaire non mis à jour (repassez la valise en disponible à la main)."); });
+        });
+      });
     });
     list.querySelectorAll("[data-eqr-bill]").forEach(function (b) {
       b.addEventListener("click", function () {
@@ -2071,12 +2126,28 @@
     ev.preventDefault();
     var day = document.getElementById("b-day").value;
     if (!day) return;
-    api("blocked_dates", { method: "POST", body: { day: day, reason: document.getElementById("b-reason").value.trim() || null } })
+    var endEl = document.getElementById("b-day-end");
+    var end = (endEl && endEl.value) || day;
+    if (end < day) { showError("La date de fin doit être après la date de début."); return; }
+    var reason = document.getElementById("b-reason").value.trim() || null;
+    // Blocage d'une plage entière (jour unique, plusieurs jours ou semaines)
+    var rows = [];
+    var d = new Date(day + "T12:00:00");
+    var stop = new Date(end + "T12:00:00");
+    var guard = 0;
+    while (d <= stop && guard < 366) {
+      var iso = d.toISOString().slice(0, 10);
+      if (!blockedDates.some(function (b) { return b.day === iso; })) rows.push({ day: iso, reason: reason });
+      d.setDate(d.getDate() + 1);
+      guard++;
+    }
+    if (!rows.length) { showError("Ces jours sont déjà bloqués."); return; }
+    api("blocked_dates", { method: "POST", body: rows })
       .then(function () {
         ev.target.reset();
         return api("blocked_dates?select=*&order=day.asc");
       })
-      .then(function (rows) { blockedDates = rows; renderBlocked(); })
+      .then(function (rows2) { blockedDates = rows2; renderBlocked(); renderCalendar(); })
       .catch(function () { showError("Ajout impossible (jour déjà bloqué ?)."); });
   });
 })();

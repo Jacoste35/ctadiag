@@ -176,6 +176,27 @@
       b.classList.toggle("active", b.dataset.bnTab === name);
     });
   }
+  // Tuiles de l'accueil cliquables : chacune ouvre directement sa page
+  document.querySelectorAll("[data-go]").forEach(function (t) {
+    t.addEventListener("click", function () { goTab(t.dataset.go); });
+    t.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); goTab(t.dataset.go); } });
+  });
+  // Pastille rouge avec compteur sur les menus qui demandent un contrôle
+  var navBadges = {};
+  function setNavBadge(tab, count) {
+    navBadges[tab] = count;
+    ["#bottom-nav [data-bn-tab='" + tab + "']", ".tabs-row .tab[data-tab='" + tab + "']"].forEach(function (sel) {
+      var el = document.querySelector(sel);
+      if (!el) return;
+      var b = el.querySelector(".nav-badge");
+      if (!count) { if (b) b.remove(); return; }
+      if (!b) { b = document.createElement("span"); b.className = "nav-badge"; el.appendChild(b); }
+      b.textContent = count > 99 ? "99+" : count;
+    });
+  }
+  function reapplyNavBadges() {
+    Object.keys(navBadges).forEach(function (t) { setNavBadge(t, navBadges[t]); });
+  }
   // Construit le menu bas selon le profil (chaque icône ouvre sa page)
   var BN_LOGO = '<img src="assets/logo-cta-transparent.png" alt="" class="bn-logo">';
   function buildBottomNav() {
@@ -183,7 +204,7 @@
     if (clientType !== "distributeur") items.push(["documents", "📄", "Devis"]);
     items.push(["grille", "💶", "Tarifs"]);
     if (clientType === "distributeur") items.push(["clients", "🏁", "Clients"]);
-    items.push(["materiel", "🧰", "Matériel"]);
+    items.push(["materiel", "🧰", "Prêt"]);
     if (me && me.remote_setup_enabled) items.push(["mes", "🛰️", "Mise en serv."]);
     items.push(["messagerie", "💬", "Messages"]);
     var nav = document.getElementById("bottom-nav");
@@ -201,6 +222,7 @@
       document.getElementById("profile-btn").click();
     });
     syncBottomNav(window.location.hash.replace("#", "") || "accueil");
+    reapplyNavBadges();
   }
   buildBottomNav();
 
@@ -452,8 +474,9 @@
   function ivArchived(r) { return r.client_archived || isDoneIv(r); }
   function renderMyInterventions() {
     var host = document.getElementById("interv-list");
-    document.getElementById("stat-interv").textContent =
-      myInterventions.filter(function (r) { return r.status === "planifiee" || r.status === "en_cours"; }).length;
+    var upcomingCount = myInterventions.filter(function (r) { return r.status === "planifiee" || r.status === "en_cours"; }).length;
+    document.getElementById("stat-interv").textContent = upcomingCount;
+    setNavBadge("interventions", upcomingCount);
     var rows = myInterventions
       .filter(function (r) { return showArchivedIv ? ivArchived(r) : !ivArchived(r); })
       .slice()
@@ -542,8 +565,9 @@
   var docs = [];
   function renderDocs() {
     var host = document.getElementById("docs-list");
-    document.getElementById("stat-devis").textContent =
-      docs.filter(function (r) { return r.kind === "devis" && r.status === "en_attente"; }).length;
+    var pendingDevis = docs.filter(function (r) { return r.kind === "devis" && r.status === "en_attente"; }).length;
+    document.getElementById("stat-devis").textContent = pendingDevis;
+    if (clientType !== "distributeur") setNavBadge("documents", pendingDevis);
     if (!docs.length) {
       host.innerHTML = '<p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Aucun document pour le moment.</p>';
       return;
@@ -699,7 +723,7 @@
   function loadProducts() {
     api("cta_products?select=*&order=sort.asc").then(function (rows) {
       catalogRows = rows || [];
-      if (catalogRows.length) openCats[catalogRows[0].category] = true;
+      // Toutes les gammes repliées par défaut : un clic les déroule
       renderProducts();
     }).catch(function () { /* non bloquant */ });
   }
@@ -817,7 +841,12 @@
       city: document.getElementById("ec-city").value.trim() || null,
       notes: document.getElementById("ec-notes").value.trim() || null
     };
-    if (!body.company_name) return;
+    // Fiche complète obligatoire (seules les notes restent libres)
+    if (!body.company_name || !body.contact_name || !body.phone || !body.email ||
+        !body.address || !body.postal_code || !body.city) {
+      showError("Complétez toute la fiche : société, contact, téléphone, e-mail, adresse, code postal et ville.");
+      return;
+    }
     api("cta_end_clients", { method: "POST", body: body })
       .then(function () { ecForm.reset(); return loadFiches(); })
       .catch(function () { showError("Création de la fiche impossible."); });
@@ -1178,8 +1207,19 @@
         billing +
         (r.message ? '<div style="margin-top:3px;font-size:12.5px;color:#8b98ae;">' + esc(r.message) + "</div>" : "") +
         '<div style="margin-top:3px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#5f6d84;">Envoyée le ' + esc(fmtDateTime(r.created_at)) + "</div></div>" +
-        '<span class="badge ' + st[1] + '">' + st[0] + "</span></div>";
+        '<span class="badge ' + st[1] + '">' + st[0] + "</span>" +
+        '<button type="button" data-eqr-del="' + r.id + '" title="Supprimer la demande" style="padding:8px 12px;border-radius:999px;border:1px solid rgba(255,110,110,.35);background:transparent;color:#ff8c8c;font-weight:800;font-size:12px;cursor:pointer;">✕</button></div>';
     }).join("");
+    host.querySelectorAll("[data-eqr-del]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        if (!window.confirm("Supprimer cette demande de prêt / location ?")) return;
+        api("cta_equipment_requests?id=eq." + b.dataset.eqrDel, { method: "DELETE" })
+          .then(function () {
+            eqReqs = eqReqs.filter(function (x) { return x.id !== b.dataset.eqrDel; });
+            renderEqReqs();
+          }).catch(function () { showError("Suppression impossible."); });
+      });
+    });
   }
   function loadEqReqs() {
     return api("cta_equipment_requests?select=*,cta_end_clients(company_name,contact_name,phone,address,postal_code,city)&order=created_at.desc").then(function (rows) {
@@ -1308,8 +1348,9 @@
   var showArchived = false;
 
   function ticketStats() {
-    document.getElementById("stat-tickets").textContent =
-      tickets.filter(function (t) { return t.status === "ouvert" || t.status === "en_cours"; }).length;
+    var openCount = tickets.filter(function (t) { return t.status === "ouvert" || t.status === "en_cours"; }).length;
+    document.getElementById("stat-tickets").textContent = openCount;
+    setNavBadge("messagerie", openCount);
   }
 
   function renderTicketList() {
