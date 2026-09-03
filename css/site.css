@@ -47,7 +47,7 @@ input::placeholder, textarea::placeholder { color: #5f6d84; }
 .tile-note { transition: border-color .3s; }
 .tile-note:hover { border-color: rgba(77,141,255,.45) !important; }
 
-.input { padding:14px 16px; border-radius:10px; border:1px solid rgba(120,150,200,.2); background:#0a0d13; color:#e8ecf2; font-size:15px; outline:none; }
+.input { padding:14px 16px; border-radius:10px; border:1px solid rgba(120,150,200,.2); background:#0a0d13; color:#e8ecf2; font-size:15px; outline:none; max-width:100%; min-width:0; box-sizing:border-box; }
 .input:focus { border-color:#4d8dff; }
 
 .footlink { font-size:13.5px; color:#93a0b5; }
