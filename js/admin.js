@@ -268,6 +268,7 @@
 
   /* ---------- Semaine à venir ---------- */
   function renderWeek() {
+    renderLater();
     var host = document.getElementById("week-list");
     var today = isoToday();
     var rows = interventions
@@ -301,6 +302,42 @@
             (r.notes ? '<div style="margin-top:3px;font-size:12px;color:#9fb6d8;">📝 ' + esc(r.notes) + "</div>" : "") +
             "</div>" + badge(r.status) + "</div>";
         }).join("") + "</div>";
+    }).join("");
+  }
+
+  /* ---------- Programmé plus loin (au-delà de 7 jours) ---------- */
+  function secteurOf(loc) {
+    if (!loc) return "";
+    var parts = String(loc).split(",");
+    return parts[parts.length - 1].trim();
+  }
+  function longDate(iso) {
+    var t = new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  }
+  function renderLater() {
+    var host = document.getElementById("later-list");
+    if (!host) return;
+    var horizon = new Date();
+    horizon.setDate(horizon.getDate() + 7);
+    var maxIso = isoOf(horizon);
+    var rows = interventions
+      .filter(function (r) { return r.date && r.date > maxIso && r.status !== "annulee" && r.status !== "terminee"; })
+      .sort(function (a, b) { return (a.date + (a.time_slot || "99")) < (b.date + (b.time_slot || "99")) ? -1 : 1; });
+    if (!rows.length) {
+      host.innerHTML = '<p style="margin:0;color:#8b98ae;font-size:14px;">Rien de programmé au-delà de la semaine à venir : le planning est libre.</p>';
+      return;
+    }
+    var sep = ' <span style="color:#4d8dff;">→</span> ';
+    host.innerHTML = rows.map(function (r) {
+      var c = clients.find(function (x) { return x.id === r.partner_id; }) || {};
+      var secteur = secteurOf(r.location || c.address);
+      return '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;padding:9px 14px;margin-bottom:6px;border-radius:12px;background:rgba(13,17,25,.7);border:1px solid rgba(120,150,200,.14);font-size:13.5px;line-height:1.5;">' +
+        '<span style="font-family:\'IBM Plex Mono\',monospace;font-weight:700;color:#7fadff;">' + esc(longDate(r.date)) + (r.time_slot ? " · " + esc(r.time_slot) : "") + "</span>" + sep +
+        '<span style="font-weight:700;color:#dfe6f2;">' + esc(r.type) + "</span>" + sep +
+        '<span style="color:#c9d4e6;">' + esc(c.company_name || "?") + (r.cta_end_clients ? " 🏁 " + esc(r.cta_end_clients.company_name) : "") + "</span>" +
+        (secteur ? sep + '<span style="color:#38d47a;">📍 ' + esc(secteur) + "</span>" : "") +
+        "</div>";
     }).join("");
   }
 
