@@ -54,6 +54,10 @@ Deno.serve(async (req) => {
     typeof body.rdv_slot === "string" && /^\d{2}:\d{2}$/.test(body.rdv_slot)
       ? body.rdv_slot
       : null;
+  const clientKind =
+    body.client_kind === "garage" || body.client_kind === "distributeur"
+      ? body.client_kind
+      : null;
 
   if (!name || !contact) {
     return json({ error: "Nom / société et contact sont obligatoires" }, 400);
@@ -75,6 +79,7 @@ Deno.serve(async (req) => {
     rdv_slot: rdvSlot,
     message,
     consent,
+    client_kind: clientKind,
   });
   if (error) {
     console.error("Insertion échouée:", error.message);
@@ -99,6 +104,7 @@ Deno.serve(async (req) => {
           subject: `Nouvelle demande de devis · ${name}`,
           text:
             `Société : ${name}\nContact : ${contact}\n` +
+            `Profil : ${clientKind === "distributeur" ? "Distributeur" : clientKind === "garage" ? "Garage" : "non précisé"}\n` +
             `Prestations : ${services.join(", ") || "non précisées"}\n` +
             `Rendez-vous souhaité : ${rdvDay ? `${rdvDay}${rdvSlot ? ` à ${rdvSlot}` : ""}` : "aucun"}\n\n${message}`,
         }),

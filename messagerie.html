@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Messagerie · CTA Conseil Technique Auto</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" href="assets/logo-cta-transparent.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#07090d">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CTA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+
+<div style="min-height:100vh;background:#07090d;overflow-x:hidden;position:relative;">
+  <div style="position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:1100px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(47,123,255,.14) 0%,transparent 65%);pointer-events:none;"></div>
+
+  <header style="position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 28px;background:rgba(7,9,13,.82);backdrop-filter:blur(14px);border-bottom:1px solid rgba(120,150,200,.12);">
+    <a href="admin.html" style="display:flex;align-items:center;gap:14px;">
+      <img src="assets/logo-cta-transparent.png" alt="CTA Conseil Technique Auto" style="height:34px;width:auto;">
+      <span class="nav-sep" style="width:1px;height:24px;background:linear-gradient(rgba(120,150,200,.05),rgba(120,150,200,.4),rgba(120,150,200,.05));"></span>
+      <span class="app-label" style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.16em;color:#7fadff;text-transform:uppercase;">Messagerie</span>
+    </a>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <a href="admin.html" class="btn-ghost" style="padding:9px 18px;border-radius:999px;border:1px solid rgba(56,212,122,.4);color:#38d47a;font-weight:700;font-size:13px;">← Back-office</a>
+      <button id="logout" class="btn-ghost" style="padding:9px 18px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:13px;cursor:pointer;">Se déconnecter</button>
+    </div>
+  </header>
+
+  <main class="section-pad" style="position:relative;max-width:1200px;margin:0 auto;padding:44px 40px 90px;">
+
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:26px;">
+      <div>
+        <h1 style="margin:0 0 8px;font-size:clamp(24px,3.4vw,34px);font-weight:900;">💬 Messagerie <span style="background:linear-gradient(90deg,#c9d4e6,#4d8dff);-webkit-background-clip:text;background-clip:text;color:transparent;">CTA</span></h1>
+        <p style="margin:0;color:#9aa6ba;font-size:15px;">Tous les tickets clients au même endroit, avec les réponses automatiques qui apprennent de vous.</p>
+      </div>
+      <span id="mq-open" style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:#7fadff;"></span>
+    </div>
+
+    <p id="portal-error" hidden style="margin:0 0 24px;padding:14px 18px;border-radius:12px;background:rgba(255,110,110,.08);border:1px solid rgba(255,110,110,.35);color:#ff8c8c;font-size:14px;"></p>
+
+    <div class="cols-tickets" style="margin-bottom:34px;">
+      <div id="at-list" style="display:flex;flex-direction:column;gap:10px;">
+        <p style="margin:0;padding:6px;color:#5f6d84;font-size:14px;">Chargement…</p>
+      </div>
+      <div class="panel-card" style="padding:24px;min-height:360px;display:flex;flex-direction:column;">
+        <p id="at-empty" style="margin:auto;color:#5f6d84;font-size:14px;text-align:center;">Sélectionnez un ticket.</p>
+        <div id="at-view" hidden style="display:flex;flex-direction:column;flex:1;gap:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid rgba(120,150,200,.12);">
+            <div>
+              <div id="at-subject" style="font-weight:800;font-size:16.5px;"></div>
+              <div id="at-meta" style="margin-top:3px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#5f6d84;"></div>
+            </div>
+            <button id="at-archive" hidden type="button" class="btn-ghost" style="padding:8px 14px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#8b98ae;font-weight:700;font-size:12px;cursor:pointer;">Archiver</button>
+            <select id="at-status" class="input" style="padding:9px 14px;width:auto;">
+              <option value="ouvert">Ouvert</option>
+              <option value="en_cours">En cours</option>
+              <option value="resolu">Résolu</option>
+              <option value="ferme">Fermé</option>
+            </select>
+          </div>
+          <div id="at-msgs" style="display:flex;flex-direction:column;gap:12px;flex:1;"></div>
+          <form id="at-reply" class="reply-form" style="display:flex;gap:10px;align-items:flex-end;">
+            <textarea id="at-body" class="input" rows="2" maxlength="5000" placeholder="Répondre en tant que CTA…" required style="flex:1;resize:vertical;"></textarea>
+            <button type="submit" class="btn-primary" style="padding:13px 22px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;">Envoyer</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Réponses automatiques -->
+    <div style="margin-bottom:16px;">
+      <h2 style="margin:0 0 8px;font-size:19px;font-weight:900;">🤖 Réponses automatiques</h2>
+      <p style="margin:0;color:#9aa6ba;font-size:14px;line-height:1.6;">Les cas qui reviennent souvent reçoivent une réponse instantanée et professionnelle : dès qu'un message client contient l'un des mots-clés, la réponse type part immédiatement dans le ticket, avec votre tutoriel de dépannage.<br><span style="color:#7fadff;">Pour apprendre au système : cliquez sur « 🧠 Apprendre » sous l'une de vos réponses dans un ticket, ajustez les mots-clés, enregistrez. Le compteur d'usage montre les cas les plus fréquents.</span></p>
+    </div>
+
+    <form id="ar-form" class="panel-card" style="display:flex;flex-direction:column;gap:12px;padding:22px;margin-bottom:18px;">
+      <div id="ar-mode" style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;color:#7fadff;text-transform:uppercase;">Nouvelle réponse automatique</div>
+      <input id="ar-title" class="input" maxlength="200" placeholder="Titre du cas (ex. : la valise ne s'allume pas) *" required>
+      <input id="ar-keywords" class="input" placeholder="Mots-clés déclencheurs, séparés par des virgules (ex. : ne s'allume pas, écran noir) *" required>
+      <textarea id="ar-reply" class="input" rows="4" maxlength="5000" placeholder="Réponse envoyée automatiquement (tutoriel de dépannage…) *" required style="resize:vertical;"></textarea>
+      <div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;">
+        <button type="button" id="ar-cancel" hidden class="btn-ghost" style="padding:11px 22px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:13.5px;cursor:pointer;">Annuler</button>
+        <button type="submit" class="btn-primary" style="padding:11px 26px;border-radius:999px;border:none;background:linear-gradient(135deg,#2f7bff,#1c5bd6);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;box-shadow:0 6px 20px rgba(47,123,255,.35);">Enregistrer</button>
+      </div>
+    </form>
+
+    <div class="panel-card" style="overflow:hidden;">
+      <div id="ar-list"><p style="margin:0;padding:22px 24px;color:#5f6d84;font-size:14px;">Chargement…</p></div>
+    </div>
+  </main>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/messagerie.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>
