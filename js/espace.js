@@ -497,9 +497,11 @@
   function ivArchived(r) { return r.client_archived || isDoneIv(r); }
   function renderMyInterventions() {
     var host = document.getElementById("interv-list");
-    var upcomingCount = myInterventions.filter(function (r) { return r.status === "planifiee" || r.status === "en_cours"; }).length;
-    document.getElementById("stat-interv").textContent = upcomingCount;
-    setNavBadge("interventions", upcomingCount);
+    // La tuile compte les interventions à venir ; pas de pastille rouge ici :
+    // les pastilles signalent uniquement ce qui attend une action (devis à
+    // signer, tickets ouverts).
+    document.getElementById("stat-interv").textContent =
+      myInterventions.filter(function (r) { return r.status === "planifiee" || r.status === "en_cours"; }).length;
     var rows = myInterventions
       .filter(function (r) { return showArchivedIv ? ivArchived(r) : !ivArchived(r); })
       .slice()
