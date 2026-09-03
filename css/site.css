@@ -213,9 +213,9 @@ input::placeholder, textarea::placeholder { color: #5f6d84; }
   html { scroll-behavior: auto; }
 }
 
-/* ---------- Menu bas façon application (espace partenaires, téléphone) ---------- */
+/* ---------- Menu bas façon application (téléphone et iPad) ---------- */
 .bottom-nav { display: none; }
-@media (max-width: 700px) {
+@media (max-width: 1024px) {
   .bottom-nav {
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 60;
     display: flex; justify-content: space-around; align-items: stretch;
@@ -228,6 +228,7 @@ input::placeholder, textarea::placeholder { color: #5f6d84; }
     background: none; border: none; cursor: pointer;
     color: #8b98ae; font-family: 'Archivo', sans-serif; font-size: 10px; font-weight: 700;
     padding: 5px 10px; border-radius: 12px; min-width: 56px;
+    -webkit-tap-highlight-color: transparent;
   }
   .bn-item .bn-ico { font-size: 20px; line-height: 1; display: flex; align-items: center; justify-content: center; height: 20px; }
   .bn-ico .bn-logo { height: 20px; width: auto; display: block; }
@@ -270,14 +271,37 @@ input::placeholder, textarea::placeholder { color: #5f6d84; }
 #clients-list [data-client-row] select { width: 100%; min-width: 0; box-sizing: border-box; }
 #clients-list [data-client-row] > div { min-width: 0; }
 
-/* Menu bas = navigation principale sur téléphone : les onglets du haut
-   restent réservés à l'ordinateur */
-@media (max-width: 700px) {
+/* Menu bas = navigation principale sur téléphone et iPad : les onglets du
+   haut restent réservés à l'ordinateur */
+@media (max-width: 1024px) {
   .with-bottom-nav .tabs-row { display: none !important; }
+  .hide-appnav { display: none !important; } /* doublons du menu bas (ex. Messagerie en haut) */
+  .with-bottom-nav main.section-pad { padding-bottom: 130px !important; }
   .bottom-nav { overflow-x: auto; justify-content: flex-start; scrollbar-width: none; }
   .bottom-nav::-webkit-scrollbar { display: none; }
   .bn-item { flex: 1 0 auto; }
 }
+/* iPad : icônes et libellés un peu plus grands, mieux espacés */
+@media (min-width: 701px) and (max-width: 1024px) {
+  .bn-item { font-size: 12px; min-width: 76px; padding: 7px 14px; gap: 4px; }
+  .bn-item .bn-ico { font-size: 24px; height: 24px; }
+  .bn-ico .bn-logo { height: 24px; }
+}
+
+/* En-têtes de groupes dépliants : grandes zones tactiles, un clic déroule */
+.group-toggle {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px;
+  padding: 14px 20px; border: none; border-top: 1px solid rgba(120, 150, 200, .08);
+  background: transparent; cursor: pointer; text-align: left;
+  font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .14em;
+  color: #7fadff; text-transform: uppercase;
+  -webkit-tap-highlight-color: transparent;
+}
+.group-toggle:hover, .group-toggle:active { background: rgba(47, 123, 255, .07); }
+.group-toggle .gt-count { color: #5f6d84; text-transform: none; letter-spacing: 0; }
+.group-toggle .gt-caret { margin-left: auto; color: #5f6d84; font-size: 13px; }
+.group-toggle.gt-amber { color: #ffbe50; }
+.group-toggle.gt-amber:hover, .group-toggle.gt-amber:active { background: rgba(255, 190, 80, .07); }
 
 /* Notes de bas de section : centrées et bornées sur grand écran */
 .note-bloc { max-width: 860px; margin-left: auto !important; margin-right: auto !important; }

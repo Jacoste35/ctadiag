@@ -727,9 +727,9 @@
     });
     document.getElementById("prod-list").innerHTML = order.map(function (cat) {
       var open = !!openCats[cat];
-      return '<button type="button" data-cat-toggle="' + esc(cat) + '" style="display:flex;align-items:center;gap:10px;width:100%;padding:14px 24px;border:none;border-top:1px solid rgba(120,150,200,.08);background:transparent;cursor:pointer;font-family:\'IBM Plex Mono\',monospace;font-size:12px;letter-spacing:.14em;color:#7fadff;text-transform:uppercase;text-align:left;">' +
+      return '<button type="button" class="group-toggle" data-cat-toggle="' + esc(cat) + '">' +
         "<span>" + (open ? "▾" : "▸") + "</span><span>" + esc(cat) + "</span>" +
-        '<span style="color:#5f6d84;text-transform:none;letter-spacing:0;">(' + byCat[cat].length + ")</span></button>" +
+        '<span class="gt-count">(' + byCat[cat].length + ')</span><span class="gt-caret">' + (open ? 'replier' : 'déplier') + '</span></button>' +
         (open ? byCat[cat].map(function (p) {
           return '<div class="list-row price-row" style="display:grid;grid-template-columns:1fr 140px 140px;gap:10px;align-items:center;border-top:none;">' +
             '<span style="font-size:13.5px;font-weight:600;color:#dfe6f2;">' + esc(p.name) +

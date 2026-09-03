@@ -1683,9 +1683,9 @@
     host.innerHTML = order.map(function (cat) {
       var open = !!eqOpenCats[cat];
       var out = byCat[cat].filter(function (e) { return e.status === "prete" || e.status === "louee"; }).length;
-      return '<button type="button" data-eq-toggle="' + esc(cat) + '" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 24px;border:none;border-top:1px solid rgba(120,150,200,.08);background:transparent;cursor:pointer;font-family:\'IBM Plex Mono\',monospace;font-size:11.5px;letter-spacing:.14em;color:#7fadff;text-transform:uppercase;text-align:left;">' +
+      return '<button type="button" class="group-toggle" data-eq-toggle="' + esc(cat) + '">' +
         "<span>" + (open ? "▾" : "▸") + "</span><span>" + esc(cat) + "</span>" +
-        '<span style="color:#5f6d84;text-transform:none;letter-spacing:0;">(' + byCat[cat].length + (out ? " · " + out + " sorti" + (out > 1 ? "s" : "") : "") + ")</span></button>" +
+        '<span class="gt-count">(' + byCat[cat].length + (out ? " · " + out + " sorti" + (out > 1 ? "s" : "") : "") + ')</span><span class="gt-caret">' + (open ? "replier" : "déplier") + "</span></button>" +
         (open ? byCat[cat].map(eqRow).join("") : "");
     }).join("");
     host.querySelectorAll("[data-eq-toggle]").forEach(function (b) {
@@ -1763,9 +1763,9 @@
     // Toutes les gammes repliées par défaut : un clic les déroule
     host.innerHTML = order.map(function (cat) {
       var open = !!adminOpenCats[cat];
-      return '<button type="button" data-padm-toggle="' + esc(cat) + '" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 24px;border:none;border-top:1px solid rgba(120,150,200,.08);background:transparent;cursor:pointer;font-family:\'IBM Plex Mono\',monospace;font-size:11.5px;letter-spacing:.14em;color:#7fadff;text-transform:uppercase;text-align:left;">' +
+      return '<button type="button" class="group-toggle" data-padm-toggle="' + esc(cat) + '">' +
         "<span>" + (open ? "▾" : "▸") + "</span><span>" + esc(cat) + "</span>" +
-        '<span style="color:#5f6d84;text-transform:none;letter-spacing:0;">(' + byCat[cat].length + ")</span></button>" +
+        '<span class="gt-count">(' + byCat[cat].length + ')</span><span class="gt-caret">' + (open ? 'replier' : 'déplier') + '</span></button>' +
         (open ? byCat[cat].map(function (p) {
           var cost = adminCostOf(p);
           return '<div class="list-row prodadmin-row" data-prod-row="' + p.id + '" style="display:grid;grid-template-columns:1fr 120px 120px 120px;gap:10px;align-items:center;border-top:none;">' +
@@ -1843,9 +1843,9 @@
       ? '<p style="margin:0;padding:18px 24px;color:#5f6d84;font-size:13.5px;">Aucune demande avec ce filtre.</p>'
       : order.map(function (cat) {
           var open = eqrOpenCats[cat] === true;
-          return '<button type="button" data-eqr-toggle="' + esc(cat) + '" style="display:flex;align-items:center;gap:10px;width:100%;padding:12px 24px;border:none;border-top:1px solid rgba(120,150,200,.08);background:transparent;cursor:pointer;font-family:\'IBM Plex Mono\',monospace;font-size:11.5px;letter-spacing:.14em;color:#ffbe50;text-transform:uppercase;text-align:left;">' +
+          return '<button type="button" class="group-toggle gt-amber" data-eqr-toggle="' + esc(cat) + '">' +
             "<span>" + (open ? "▾" : "▸") + "</span><span>" + esc(cat) + "</span>" +
-            '<span style="color:#5f6d84;text-transform:none;letter-spacing:0;">(' + byCat[cat].length + ")</span></button>" +
+            '<span class="gt-count">(' + byCat[cat].length + ')</span><span class="gt-caret">' + (open ? 'replier' : 'déplier') + '</span></button>' +
             (open ? byCat[cat].map(eqrAdminRow).join("") : "");
         }).join(""));
     document.getElementById("eqr-admin-list").querySelectorAll("[data-eqr-toggle]").forEach(function (b) {
