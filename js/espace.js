@@ -200,6 +200,7 @@
       loadFiches();
       loadMyRequests();
       loadProducts();
+      renderPlanning();
     }
     if (clientType !== "distributeur") {
       // Client direct : l'onglet devient « Vos tarifs » (tarifs publics, sans remise)
@@ -241,6 +242,64 @@
           msg.textContent = "Changement impossible pour le moment, réessayez.";
         });
     });
+  }
+
+  /* ---------- Organisation de la journée (distributeurs) ---------- */
+  function isoOfDay(d) {
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function secteurOf(loc) {
+    if (!loc) return "";
+    var parts = String(loc).split(",");
+    return parts[parts.length - 1].trim();
+  }
+  function longDate(iso) {
+    var t = new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  }
+  function planLine(r, withDate) {
+    var sep = ' <span style="color:#4d8dff;">→</span> ';
+    var endClient = r.cta_end_clients && r.cta_end_clients.company_name;
+    var secteur = secteurOf(r.location);
+    return '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;padding:9px 14px;margin-bottom:6px;border-radius:12px;background:rgba(13,17,25,.7);border:1px solid rgba(120,150,200,.14);font-size:13.5px;line-height:1.5;">' +
+      '<span style="font-family:\'IBM Plex Mono\',monospace;font-weight:700;color:#7fadff;">' +
+      (withDate ? esc(longDate(r.date)) + (r.time_slot ? " · " + esc(r.time_slot) : "") : esc(r.time_slot || "Journée")) + "</span>" + sep +
+      '<span style="font-weight:700;color:#dfe6f2;">' + esc(r.type) + "</span>" + sep +
+      '<span style="color:#c9d4e6;">' + (endClient ? "🏁 " + esc(endClient) : "Chez vous") + "</span>" +
+      (secteur ? sep + '<span style="color:#38d47a;">📍 ' + esc(secteur) + "</span>" : "") +
+      " " + badge(r.status) +
+      "</div>";
+  }
+  function renderPlanning() {
+    if (clientType !== "distributeur") return;
+    var wrap = document.getElementById("day-org");
+    if (!wrap) return;
+    wrap.hidden = false;
+    var today = isoOfDay(new Date());
+    var horizon = new Date();
+    horizon.setDate(horizon.getDate() + 7);
+    var maxIso = isoOfDay(horizon);
+    document.getElementById("p-today-date").textContent =
+      new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+    var active = myInterventions.filter(function (r) { return r.date && r.status !== "annulee"; });
+    var todays = active
+      .filter(function (r) { return r.date === today; })
+      .sort(function (a, b) { return (a.time_slot || "99") < (b.time_slot || "99") ? -1 : 1; });
+    document.getElementById("p-today-list").innerHTML = todays.length
+      ? todays.map(function (r) { return planLine(r, false); }).join("")
+      : '<p style="margin:0;color:#8b98ae;font-size:14px;">Aucune intervention CTA chez vous ou vos clients aujourd\'hui.</p>';
+    var week = active
+      .filter(function (r) { return r.date > today && r.date <= maxIso && r.status !== "terminee"; })
+      .sort(function (a, b) { return (a.date + (a.time_slot || "99")) < (b.date + (b.time_slot || "99")) ? -1 : 1; });
+    document.getElementById("p-week-list").innerHTML = week.length
+      ? week.map(function (r) { return planLine(r, true); }).join("")
+      : '<p style="margin:0;color:#8b98ae;font-size:14px;">Rien de planifié sur les 7 prochains jours.</p>';
+    var later = active
+      .filter(function (r) { return r.date > maxIso && r.status !== "terminee"; })
+      .sort(function (a, b) { return (a.date + (a.time_slot || "99")) < (b.date + (b.time_slot || "99")) ? -1 : 1; });
+    document.getElementById("p-later-list").innerHTML = later.length
+      ? later.map(function (r) { return planLine(r, true); }).join("")
+      : '<p style="margin:0;color:#8b98ae;font-size:14px;">Rien de programmé au-delà de la semaine à venir : ces journées sont libres pour de nouveaux rendez-vous.</p>';
   }
 
   /* ---------- Interventions (groupées par mois et semaine, archivables) ---------- */
@@ -315,6 +374,7 @@
     myInterventions = rows;
     renderMyInterventions();
     renderFiches();
+    renderPlanning();
   }).catch(function () { showError("Impossible de charger les interventions : reconnectez-vous ou réessayez plus tard."); });
 
   /* ---------- Devis & factures (lecture et signature en ligne) ---------- */
