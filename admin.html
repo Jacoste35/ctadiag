@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/site.css?v=20260907">
+<link rel="stylesheet" href="css/site.css?v=20260908">
 </head>
 <body class="with-bottom-nav">
 
@@ -366,11 +366,28 @@
   </div>
 </div>
 
+<!-- Clôture d'intervention : rapport à cases à cocher, utilisable d'une main -->
+<div id="closure-modal" hidden style="position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(4,6,10,.72);backdrop-filter:blur(6px);">
+  <div class="panel-card" style="position:relative;overflow:auto;width:100%;max-width:460px;max-height:92vh;padding:26px;margin:auto;">
+    <div style="position:absolute;top:-1px;left:24px;right:40%;height:2px;background:linear-gradient(90deg,transparent,#38d47a,transparent);"></div>
+    <h3 id="cl-title" style="margin:0 0 6px;font-size:18px;font-weight:900;">✅ Clôturer l'intervention</h3>
+    <p id="cl-info" style="margin:0 0 16px;font-size:13.5px;color:#9aa6ba;line-height:1.6;"></p>
+    <form id="closure-form" style="display:flex;flex-direction:column;gap:14px;">
+      <div id="cl-items" style="display:flex;flex-direction:column;gap:9px;"></div>
+      <textarea id="cl-note" class="input" rows="3" maxlength="2000" placeholder="Précisions (facultatif) : ce qui s'est passé, réserves, suite à donner…" style="resize:vertical;width:100%;box-sizing:border-box;"></textarea>
+      <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+        <button type="button" id="cl-cancel" class="btn-ghost" style="padding:12px 22px;border-radius:999px;border:1px solid rgba(150,180,230,.3);background:transparent;color:#dfe6f2;font-weight:700;font-size:13.5px;cursor:pointer;">Annuler</button>
+        <button type="submit" id="cl-submit" class="btn-primary" style="padding:12px 26px;border-radius:999px;border:none;background:linear-gradient(135deg,#2bb56a,#1d8f52);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;box-shadow:0 6px 20px rgba(56,212,122,.35);">Clôturer ✓</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- Menu bas façon application (téléphone) -->
 <nav id="bottom-nav" class="bottom-nav"></nav>
 
-<script src="js/config.js?v=20260907"></script>
-<script src="js/admin.js?v=20260907"></script>
-<script src="js/pwa.js?v=20260907"></script>
+<script src="js/config.js?v=20260908"></script>
+<script src="js/admin.js?v=20260908"></script>
+<script src="js/pwa.js?v=20260908"></script>
 </body>
 </html>

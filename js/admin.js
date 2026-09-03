@@ -384,6 +384,7 @@
   function rdvButtons(id) {
     return '<button type="button" ' + RDV_BTN + ' data-rdv-remind="' + id + '">📧 Relancer</button>' +
       '<button type="button" ' + RDV_BTN + ' data-rdv-move="' + id + '">📅 Reporter</button>' +
+      '<button type="button" ' + RDV_BTN.replace('style="', 'style="border-color:rgba(56,212,122,.45);color:#38d47a;') + ' data-rdv-close="' + id + '">✅ Clôturer</button>' +
       '<button type="button" ' + DANGER_BTN.replace('style="', 'style="white-space:nowrap;') + ' data-rdv-cancel="' + id + '">✕ Annuler</button>';
   }
   function bindRdvActions(host) {
@@ -392,6 +393,9 @@
     });
     host.querySelectorAll("[data-rdv-move]").forEach(function (b) {
       b.addEventListener("click", function () { rescheduleIv(b.dataset.rdvMove); });
+    });
+    host.querySelectorAll("[data-rdv-close]").forEach(function (b) {
+      b.addEventListener("click", function () { openClosure(b.dataset.rdvClose); });
     });
     host.querySelectorAll("[data-rdv-cancel]").forEach(function (b) {
       b.addEventListener("click", function () { cancelIv(b.dataset.rdvCancel); });
@@ -457,6 +461,84 @@
       })
       .catch(function () { showError("Report impossible."); });
   });
+  /* ---------- Rapport de clôture d'intervention ----------
+     De grandes cases à cocher : remplissable d'une main, sur la route. */
+  var CLOSURE_ITEMS = [
+    ["realisee", "Prestation réalisée en totalité"],
+    ["materiel", "Matériel installé / mis en service"],
+    ["tests", "Tests de fonctionnement validés"],
+    ["formation", "Client formé à l'utilisation"],
+    ["reserves", "Réserves / points à surveiller"],
+    ["suite", "Intervention complémentaire à prévoir"]
+  ];
+  function closureLabel(key) {
+    var it = CLOSURE_ITEMS.find(function (x) { return x[0] === key; });
+    return it ? it[1] : key;
+  }
+  var closureId = null;
+  function closeClosure() {
+    var m = document.getElementById("closure-modal");
+    if (m) m.hidden = true;
+    closureId = null;
+  }
+  function openClosure(id) {
+    var r = interventions.find(function (x) { return x.id === id; });
+    var modal = document.getElementById("closure-modal");
+    if (!r || !modal) return;
+    closureId = id;
+    var rep = r.closure_report || {};
+    var checked = rep.items || [];
+    document.getElementById("cl-title").textContent = r.closure_report ? "📋 Rapport de clôture" : "✅ Clôturer l'intervention";
+    document.getElementById("cl-submit").textContent = r.closure_report ? "Mettre à jour ✓" : "Clôturer ✓";
+    document.getElementById("cl-info").textContent =
+      clientName(r.partner_id) + (r.cta_end_clients ? " → " + r.cta_end_clients.company_name : "") +
+      " · " + (r.type || "") + " · " + fmtDate(r.date) + (r.time_slot ? " à " + r.time_slot.slice(0, 5) : "");
+    document.getElementById("cl-items").innerHTML = CLOSURE_ITEMS.map(function (it) {
+      return '<label class="cl-item"><input type="checkbox" value="' + it[0] + '"' +
+        (checked.indexOf(it[0]) !== -1 ? " checked" : "") + ">" + esc(it[1]) + "</label>";
+    }).join("");
+    document.getElementById("cl-note").value = rep.note || "";
+    modal.hidden = false;
+  }
+  ctaOn("cl-cancel", "click", closeClosure);
+  ctaOn("closure-modal", "click", function (e) { if (e.target === this) closeClosure(); });
+  ctaOn("closure-form", "submit", function (ev) {
+    ev.preventDefault();
+    var r = interventions.find(function (x) { return x.id === closureId; });
+    if (!r) { closeClosure(); return; }
+    var items = [];
+    document.querySelectorAll("#cl-items input:checked").forEach(function (c) { items.push(c.value); });
+    var note = document.getElementById("cl-note").value.trim();
+    if (!items.length && !note) { showError("Cochez au moins une case ou ajoutez une précision."); return; }
+    var body = {
+      status: "terminee",
+      closure_report: { items: items, note: note || null },
+      closed_at: r.closed_at || new Date().toISOString()
+    };
+    api("cta_interventions?id=eq." + r.id, { method: "PATCH", body: body })
+      .then(function () {
+        Object.assign(r, body);
+        closeClosure();
+        afterIvChange();
+      })
+      .catch(function () { showError("Clôture impossible : réessayez."); });
+  });
+  // Résumé du rapport dans les listes (replié par défaut)
+  function closureSummary(r) {
+    if (!r.closure_report) return "";
+    var rep = r.closure_report;
+    var lines = (rep.items || []).map(function (k) {
+      return '<div style="margin-top:2px;">✓ ' + esc(closureLabel(k)) + "</div>";
+    }).join("");
+    return '<details class="closure-details" style="margin-top:5px;">' +
+      "<summary>📋 Rapport de clôture</summary>" +
+      '<div style="margin-top:6px;padding:10px 14px;border-radius:10px;background:rgba(56,212,122,.06);border:1px solid rgba(56,212,122,.22);font-size:12.5px;color:#c3cddd;line-height:1.6;">' +
+      (lines || "") +
+      (rep.note ? '<div style="margin-top:6px;color:#93a0b5;">💬 ' + esc(rep.note) + "</div>" : "") +
+      (r.closed_at ? '<div style="margin-top:6px;font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;color:#5f6d84;">Clôturée le ' + esc(fmtDateTime(r.closed_at)) + "</div>" : "") +
+      "</div></details>";
+  }
+
   function cancelIv(id) {
     var r = interventions.find(function (x) { return x.id === id; });
     if (!r) return;
@@ -976,7 +1058,12 @@
         '<div style="min-width:120px;font-family:\'IBM Plex Mono\',monospace;font-size:13px;color:#c9d4e6;">' + esc(fmtDate(r.date)) + (r.time_slot ? " · " + esc(r.time_slot) : "") + "</div>" +
         '<div style="flex:1;min-width:220px;">' +
         '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span style="font-weight:800;font-size:14.5px;">' + esc(r.type) + '</span>' + catChip(r.category) + ' <span style="font-weight:600;font-size:13.5px;color:#7fadff;">· ' + esc(clientName(r.partner_id)) + (endClient ? " → 🚗 " + esc(endClient) : "") + "</span></div>" +
-        '<div style="margin-top:3px;font-size:13px;color:#93a0b5;">' + esc(r.equipment || "") + (r.location ? " · " + esc(r.location) : "") + (r.notes ? " · " + esc(r.notes) : "") + "</div></div>" +
+        '<div style="margin-top:3px;font-size:13px;color:#93a0b5;">' + esc(r.equipment || "") + (r.location ? " · " + esc(r.location) : "") + (r.notes ? " · " + esc(r.notes) : "") + "</div>" +
+        closureSummary(r) + "</div>" +
+        (r.status !== "annulee"
+          ? '<button type="button" data-iv-close="' + r.id + '" style="padding:8px 14px;border-radius:999px;border:1px solid rgba(56,212,122,.45);background:' + (r.closure_report ? "transparent" : "rgba(56,212,122,.12)") + ';color:#38d47a;font-weight:800;font-size:12px;cursor:pointer;font-family:\'Archivo\',sans-serif;white-space:nowrap;">' +
+            (r.closure_report ? "📋 Rapport" : "✅ Clôturer") + "</button>"
+          : "") +
         '<span style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;">' +
         '<input class="input iv-amount" type="number" step="0.01" min="0" value="' + (r.amount_ht == null ? "" : r.amount_ht) + '" placeholder="Presta €" title="Prix de la prestation HT" style="width:86px;padding:8px 10px;font-size:13px;text-align:right;">' +
         '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:9.5px;letter-spacing:.08em;color:#5f6d84;text-transform:uppercase;">Forfait</span></span>' +
@@ -993,6 +1080,9 @@
     });
     host.innerHTML = html + toggle;
     bindAiToggle(host);
+    host.querySelectorAll("[data-iv-close]").forEach(function (b) {
+      b.addEventListener("click", function () { openClosure(b.dataset.ivClose); });
+    });
     host.querySelectorAll("[data-iv-arch]").forEach(function (b) {
       b.addEventListener("click", function () {
         var r = interventions.find(function (x) { return x.id === b.dataset.ivArch; });

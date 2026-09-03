@@ -471,6 +471,29 @@
   function isDoneIv(r) {
     return r.status === "terminee" && r.date && r.date < isoOfDay(new Date());
   }
+  // Rapport de clôture rédigé par CTA : cases cochées + note, replié par défaut
+  var CLOSURE_LABELS = {
+    realisee: "Prestation réalisée en totalité",
+    materiel: "Matériel installé / mis en service",
+    tests: "Tests de fonctionnement validés",
+    formation: "Client formé à l'utilisation",
+    reserves: "Réserves / points à surveiller",
+    suite: "Intervention complémentaire à prévoir"
+  };
+  function closureBlock(r) {
+    if (!r.closure_report) return "";
+    var rep = r.closure_report;
+    var lines = (rep.items || []).map(function (k) {
+      return '<div style="margin-top:2px;">✓ ' + esc(CLOSURE_LABELS[k] || k) + "</div>";
+    }).join("");
+    return '<details class="closure-details" style="margin-top:5px;">' +
+      "<summary>📋 Rapport de clôture CTA</summary>" +
+      '<div style="margin-top:6px;padding:10px 14px;border-radius:10px;background:rgba(56,212,122,.06);border:1px solid rgba(56,212,122,.22);font-size:12.5px;color:#c3cddd;line-height:1.6;">' +
+      (lines || "") +
+      (rep.note ? '<div style="margin-top:6px;color:#93a0b5;">💬 ' + esc(rep.note) + "</div>" : "") +
+      (r.closed_at ? '<div style="margin-top:6px;font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;color:#5f6d84;">Clôturée le ' + esc(fmtDateTime(r.closed_at)) + "</div>" : "") +
+      "</div></details>";
+  }
   function ivArchived(r) { return r.client_archived || isDoneIv(r); }
   function renderMyInterventions() {
     var host = document.getElementById("interv-list");
@@ -511,7 +534,8 @@
         '<div style="flex:1;min-width:220px;"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span style="font-weight:800;font-size:15px;">' + esc(r.type) + "</span>" + catChip(r.category) + "</div>" +
         (endClient ? '<div style="margin-top:3px;font-size:13px;color:#7fadff;">🚗 Chez ' + esc(endClient) + "</div>" : "") +
         '<div style="margin-top:3px;font-size:13px;color:#93a0b5;">' + esc(r.equipment || "") + (r.location ? " · " + esc(r.location) : "") + "</div>" +
-        (r.notes ? '<div style="margin-top:4px;font-size:12.5px;color:#5f6d84;">' + esc(r.notes) + "</div>" : "") + "</div>" +
+        (r.notes ? '<div style="margin-top:4px;font-size:12.5px;color:#5f6d84;">' + esc(r.notes) + "</div>" : "") +
+        closureBlock(r) + "</div>" +
         badge(r.status) +
         (isDoneIv(r) && !r.client_archived
           ? '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;color:#5f6d84;" title="Réalisée : archivée automatiquement">auto</span>'
