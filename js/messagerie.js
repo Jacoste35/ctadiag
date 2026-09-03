@@ -145,28 +145,41 @@
     document.getElementById("mq-open").textContent = n + " ticket" + (n > 1 ? "s" : "") + " ouvert" + (n > 1 ? "s" : "");
   }
 
-  /* ---------- Liste des tickets ---------- */
+  /* ---------- Liste des tickets (triés par client, archives dépliables) ---------- */
+  function ticketItem(t, dim) {
+    return '<button type="button" class="ticket-item' + (currentTicket === t.id ? " active" : "") + '" data-id="' + t.id + '"' +
+      (dim ? ' style="opacity:.72;"' : "") + ">" +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">' +
+      '<span style="font-weight:800;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(t.subject) + "</span>" + badge(t.status) + "</div>" +
+      '<div style="margin-top:5px;font-family:\'IBM Plex Mono\',monospace;font-size:11.5px;color:#5f6d84;">Mis à jour le ' + esc(fmtDateTime(t.updated_at)) + "</div>" +
+      "</button>";
+  }
+  // Regroupe une liste de tickets par client (clients triés par nom, tickets du plus récent au plus ancien)
+  function groupedByClient(list, dim) {
+    var byClient = {};
+    list.forEach(function (t) { (byClient[t.partner_id] = byClient[t.partner_id] || []).push(t); });
+    return Object.keys(byClient)
+      .sort(function (a, b) { return clientName(a).localeCompare(clientName(b), "fr"); })
+      .map(function (pid) {
+        var rows = byClient[pid].sort(function (a, b) { return new Date(b.updated_at) - new Date(a.updated_at); });
+        return '<div style="margin:6px 2px 2px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;letter-spacing:.12em;color:#7fadff;text-transform:uppercase;">👤 ' +
+          esc(clientName(pid)) + " (" + rows.length + ")</div>" +
+          rows.map(function (t) { return ticketItem(t, dim); }).join("");
+      }).join("");
+  }
   function renderTicketList() {
     var host = document.getElementById("at-list");
-    var visible = tickets.filter(function (t) { return showArchived ? t.archived : !t.archived; });
-    var archivedCount = tickets.filter(function (t) { return t.archived; }).length;
-    var toggle = archivedCount
-      ? '<button type="button" id="at-toggle-archived" style="margin-top:4px;padding:9px 14px;border-radius:999px;border:1px dashed rgba(120,150,200,.3);background:transparent;color:#8b98ae;font-weight:700;font-size:12.5px;cursor:pointer;font-family:\'Archivo\',sans-serif;">' +
-        (showArchived ? "← Retour aux tickets actifs" : "🗄️ Voir les archives (" + archivedCount + ")") + "</button>"
-      : "";
-    if (!visible.length) {
-      host.innerHTML = '<p style="margin:0;padding:6px;color:#5f6d84;font-size:14px;">' +
-        (showArchived ? "Aucun ticket archivé." : "Aucun ticket.") + "</p>" + toggle;
-      bindToggle(host);
-      return;
+    var actifs = tickets.filter(function (t) { return !t.archived; });
+    var archives = tickets.filter(function (t) { return t.archived; });
+    var html = actifs.length
+      ? groupedByClient(actifs, false)
+      : '<p style="margin:0;padding:6px;color:#5f6d84;font-size:14px;">Aucun ticket actif.</p>';
+    if (archives.length) {
+      html += '<button type="button" id="at-toggle-archived" style="margin-top:10px;padding:9px 14px;border-radius:999px;border:1px dashed rgba(120,150,200,.3);background:transparent;color:#8b98ae;font-weight:700;font-size:12.5px;cursor:pointer;font-family:\'Archivo\',sans-serif;text-align:left;">' +
+        (showArchived ? "▾ 🗄️ Archives (" + archives.length + ") : replier" : "▸ 🗄️ Archives (" + archives.length + ") : dérouler") + "</button>";
+      if (showArchived) html += groupedByClient(archives, true);
     }
-    host.innerHTML = visible.map(function (t) {
-      return '<button type="button" class="ticket-item' + (currentTicket === t.id ? " active" : "") + '" data-id="' + t.id + '">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">' +
-        '<span style="font-weight:800;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(t.subject) + "</span>" + badge(t.status) + "</div>" +
-        '<div style="margin-top:5px;font-family:\'IBM Plex Mono\',monospace;font-size:11.5px;color:#5f6d84;">' + esc(clientName(t.partner_id)) + " · " + esc(fmtDateTime(t.updated_at)) + "</div>" +
-        "</button>";
-    }).join("") + toggle;
+    host.innerHTML = html;
     host.querySelectorAll(".ticket-item").forEach(function (b) {
       b.addEventListener("click", function () {
         currentTicket = b.dataset.id;
@@ -180,10 +193,14 @@
     var t = host.querySelector("#at-toggle-archived");
     if (t) t.addEventListener("click", function () {
       showArchived = !showArchived;
-      var pool = tickets.filter(function (x) { return showArchived ? x.archived : !x.archived; });
-      currentTicket = pool.length ? pool[0].id : null;
+      // Si le ticket sélectionné est une archive qu'on replie, on revient au premier actif
+      var current = tickets.find(function (x) { return x.id === currentTicket; });
+      if (!showArchived && current && current.archived) {
+        var pool = tickets.filter(function (x) { return !x.archived; });
+        currentTicket = pool.length ? pool[0].id : null;
+        renderThread();
+      }
       renderTicketList();
-      renderThread();
     });
   }
 
@@ -231,7 +248,7 @@
       tickets = rows;
       if (currentTicket && !tickets.some(function (t) { return t.id === currentTicket; })) currentTicket = null;
       if (!currentTicket) {
-        var pool = tickets.filter(function (t) { return showArchived ? t.archived : !t.archived; });
+        var pool = tickets.filter(function (t) { return !t.archived; });
         if (pool.length) currentTicket = pool[0].id;
       }
       renderOpenCount(); renderTicketList(); renderThread();
