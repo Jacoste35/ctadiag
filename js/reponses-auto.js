@@ -35,6 +35,27 @@
   }
   ctaOn("logout", "click", logout);
 
+  // Menu bas façon application : mêmes raccourcis que le back-office,
+  // chaque icône ramène à sa page (Messages reste la page courante).
+  (function buildBottomNav() {
+    var nav = document.getElementById("bottom-nav");
+    if (!nav) return;
+    var items = [
+      ["admin.html#accueil", '<img src="assets/logo-cta-transparent.png" alt="" class="bn-logo">', "Accueil", false],
+      ["admin.html#demandes", "\ud83d\udce5", "Contacts", false],
+      ["admin.html#clients", "\ud83d\udc65", "Clients", false],
+      ["admin.html#interventions", "\ud83d\udee0\ufe0f", "Interv.", false],
+      ["admin.html#grille", "\ud83d\udcb6", "Tarifs", false],
+      ["admin.html#materiel", "\ud83e\uddf0", "Pr\u00eat", false],
+      ["admin.html#agenda", "\ud83d\udcc5", "Agenda", false],
+      ["messagerie.html", "\ud83d\udcac", "Messages", true]
+    ];
+    nav.innerHTML = items.map(function (it) {
+      return '<a class="bn-item' + (it[3] ? " active" : "") + '" href="' + it[0] + '" style="text-decoration:none;"><span class="bn-ico">' + it[1] + "</span><span>" + it[2] + "</span></a>";
+    }).join("");
+  })();
+
+
   function refreshSession() {
     return fetch(API + "/auth/v1/token?grant_type=refresh_token", {
       method: "POST",

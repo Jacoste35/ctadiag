@@ -184,6 +184,15 @@ input::placeholder, textarea::placeholder { color: #5f6d84; }
   .price-head span, .price-row span { font-size: 12.5px !important; }
   .tarif-row { grid-template-columns: 1fr 104px !important; padding-left: 18px !important; padding-right: 18px !important; }
 
+  /* Catalogue admin (4 colonnes) : le nom passe en pleine largeur,
+     les trois prix se partagent la ligne du dessous */
+  .prodadmin-head { grid-template-columns: repeat(3, 1fr) !important; padding-left: 16px !important; padding-right: 16px !important; }
+  .prodadmin-head span:first-child { display: none; }
+  .prodadmin-head span { font-size: 10px !important; }
+  .prodadmin-row { grid-template-columns: repeat(3, 1fr) !important; padding-left: 16px !important; padding-right: 16px !important; }
+  .prodadmin-row > span:first-child { grid-column: 1 / -1; }
+  .prodadmin-row input { width: 100%; }
+
   /* Back-office : édition de la grille sur 2 colonnes.
      min-width:0 partout : les champs rétrécissent au lieu de déborder. */
   .ag-row { grid-template-columns: 1fr 1fr !important; }
