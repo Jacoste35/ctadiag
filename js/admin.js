@@ -230,8 +230,10 @@
       ["agenda", "📅", "Agenda"]
     ];
     var nav = document.getElementById("bottom-nav");
+    var current = window.location.hash.replace("#", "") || "accueil";
+    if (!items.some(function (it) { return it[0] === current; })) current = "accueil";
     nav.innerHTML = items.map(function (it) {
-      return '<button type="button" class="bn-item' + (it[0] === "accueil" ? " active" : "") + '" data-bn-tab="' + it[0] + '"><span class="bn-ico">' + it[1] + "</span><span>" + it[2] + "</span></button>";
+      return '<button type="button" class="bn-item' + (it[0] === current ? " active" : "") + '" data-bn-tab="' + it[0] + '"><span class="bn-ico">' + it[1] + "</span><span>" + it[2] + "</span></button>";
     }).join("") +
       '<a class="bn-item" id="bn-messages" href="messagerie.html" style="text-decoration:none;"><span class="bn-ico">💬</span><span>Messages</span></a>';
     nav.querySelectorAll("[data-bn-tab]").forEach(function (b) {
